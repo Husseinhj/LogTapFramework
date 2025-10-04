@@ -32,6 +32,9 @@
 		E631ED132E90948800A7563E /* _NIOFileSystemFoundationCompat in Frameworks */ = {isa = PBXBuildFile; productRef = E68BD8452E9092A900630787 /* _NIOFileSystemFoundationCompat */; };
 		E631ED142E90948800A7563E /* WebSocketKit in Frameworks */ = {isa = PBXBuildFile; productRef = E68BD8472E9092B100630787 /* WebSocketKit */; };
 		E631ED152E90948800A7563E /* NIOTransportServices in Frameworks */ = {isa = PBXBuildFile; productRef = E68BD8492E9092BB00630787 /* NIOTransportServices */; };
+		E631EDBD2E917A3600A7563E /* Resources+HTML.swift in Sources */ = {isa = PBXBuildFile; fileRef = E631EDBB2E917A3600A7563E /* Resources+HTML.swift */; };
+		E631EDBE2E917A3600A7563E /* Resources+JS.swift in Sources */ = {isa = PBXBuildFile; fileRef = E631EDBC2E917A3600A7563E /* Resources+JS.swift */; };
+		E631EDBF2E917A3600A7563E /* Resources+CSS.swift in Sources */ = {isa = PBXBuildFile; fileRef = E631EDBA2E917A3600A7563E /* Resources+CSS.swift */; };
 		E96D0476EA6E919968A1F3C7 /* LogTapServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7589C7CD61455B415F260418 /* LogTapServer.swift */; };
 		EAA0A093AFE43B4B27883B36 /* LogTapPrintBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A3DEA0291AAE499650252EE /* LogTapPrintBridge.swift */; };
 /* End PBXBuildFile section */
@@ -48,6 +51,9 @@
 		A22406AA664E475C190214C0 /* Resources.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Resources.swift; sourceTree = "<group>"; };
 		A6501DED7C0C0E48A33ADC72 /* LogEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogEvent.swift; sourceTree = "<group>"; };
 		D3BB1BEA670C821405C3DFBA /* LogTap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogTap.swift; sourceTree = "<group>"; };
+		E631EDBA2E917A3600A7563E /* Resources+CSS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Resources+CSS.swift"; sourceTree = "<group>"; };
+		E631EDBB2E917A3600A7563E /* Resources+HTML.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Resources+HTML.swift"; sourceTree = "<group>"; };
+		E631EDBC2E917A3600A7563E /* Resources+JS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Resources+JS.swift"; sourceTree = "<group>"; };
 		F0479E30BB2B2746ECB70926 /* WebSocketLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebSocketLogger.swift; sourceTree = "<group>"; };
 		F376AE3EADFC5B9BDC157B84 /* LogTapStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogTapStore.swift; sourceTree = "<group>"; };
 		FFAA137FDC5351D62DF23711 /* LogTapSinkAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogTapSinkAdapter.swift; sourceTree = "<group>"; };
@@ -122,6 +128,9 @@
 		6DF3C3C264D1AC59D9EA4653 /* Utils */ = {
 			isa = PBXGroup;
 			children = (
+				E631EDBA2E917A3600A7563E /* Resources+CSS.swift */,
+				E631EDBB2E917A3600A7563E /* Resources+HTML.swift */,
+				E631EDBC2E917A3600A7563E /* Resources+JS.swift */,
 				A22406AA664E475C190214C0 /* Resources.swift */,
 			);
 			path = Utils;
@@ -264,6 +273,9 @@
 				707242A491F54CD11F8AD2A8 /* LogEvent.swift in Sources */,
 				6341E0AA9E3EE29B24F28899 /* LogTap.swift in Sources */,
 				8540C0EB17A1664DD3F714AA /* LogTapLogSink.swift in Sources */,
+				E631EDBD2E917A3600A7563E /* Resources+HTML.swift in Sources */,
+				E631EDBE2E917A3600A7563E /* Resources+JS.swift in Sources */,
+				E631EDBF2E917A3600A7563E /* Resources+CSS.swift in Sources */,
 				3EE403B99FCFD3AE43EF0EC8 /* LogTapLogger.swift in Sources */,
 				EAA0A093AFE43B4B27883B36 /* LogTapPrintBridge.swift in Sources */,
 				E96D0476EA6E919968A1F3C7 /* LogTapServer.swift in Sources */,
