@@ -1,0 +1,16 @@
+name: LogTapSample
+options:
+  bundleIdPrefix: com.github.husseinhj
+  xcodeprojName: LogTapSample.xcodeproj
+configs:
+  Debug: debug
+  Release: release
+targets:
+  LogTapSample:
+    type: application
+    platform: iOS
+    sources: [Sources]
+    infoPlist: Sources/LogTapSample/Info.plist
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.github.husseinhj.LogTapSample

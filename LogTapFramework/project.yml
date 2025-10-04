@@ -1,0 +1,15 @@
+name: LogTapFramework
+options:
+  bundleIdPrefix: com.github.husseinhj
+configs:
+  Debug: debug
+  Release: release
+targets:
+  LogTapFramework:
+    type: framework
+    platform: iOS
+    sources: [Sources]
+    infoPlist: Sources/LogTapFramework/Info.plist
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.github.husseinhj.LogTapFramework

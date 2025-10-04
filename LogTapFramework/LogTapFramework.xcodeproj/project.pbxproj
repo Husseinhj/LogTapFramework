@@ -1,0 +1,575 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 63;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0E984B67744E25C42B47278E /* LogTapSinkAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFAA137FDC5351D62DF23711 /* LogTapSinkAdapter.swift */; };
+		3EE403B99FCFD3AE43EF0EC8 /* LogTapLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 261F26DE8A50139FE73F5ED2 /* LogTapLogger.swift */; };
+		6341E0AA9E3EE29B24F28899 /* LogTap.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3BB1BEA670C821405C3DFBA /* LogTap.swift */; };
+		707242A491F54CD11F8AD2A8 /* LogEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6501DED7C0C0E48A33ADC72 /* LogEvent.swift */; };
+		80738B9D53394333931FA06D /* URLProtocol+Interceptor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 530D0CC9FF4454CA8BAB149D /* URLProtocol+Interceptor.swift */; };
+		8540C0EB17A1664DD3F714AA /* LogTapLogSink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24AF2B98214BC7F891CFFEAA /* LogTapLogSink.swift */; };
+		B0EFC6368A3014296ABAE170 /* Resources.swift in Sources */ = {isa = PBXBuildFile; fileRef = A22406AA664E475C190214C0 /* Resources.swift */; };
+		B603DE71406978978792B930 /* LogTapStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F376AE3EADFC5B9BDC157B84 /* LogTapStore.swift */; };
+		D1D8267FFA7613F0678F2981 /* WebSocketLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0479E30BB2B2746ECB70926 /* WebSocketLogger.swift */; };
+		E1BB2E8A31917C4C1F0359B3 /* DeviceAppInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50376E624D10D9C245CB97C6 /* DeviceAppInfo.swift */; };
+		E631ED072E90948800A7563E /* NIO in Frameworks */ = {isa = PBXBuildFile; productRef = E68BD8392E9092A900630787 /* NIO */; };
+		E631ED082E90948800A7563E /* NIOConcurrencyHelpers in Frameworks */ = {isa = PBXBuildFile; productRef = E68BD83A2E9092A900630787 /* NIOConcurrencyHelpers */; };
+		E631ED092E90948800A7563E /* NIOCore in Frameworks */ = {isa = PBXBuildFile; productRef = E68BD83B2E9092A900630787 /* NIOCore */; };
+		E631ED0A2E90948800A7563E /* NIOEmbedded in Frameworks */ = {isa = PBXBuildFile; productRef = E68BD83C2E9092A900630787 /* NIOEmbedded */; };
+		E631ED0B2E90948800A7563E /* NIOFoundationCompat in Frameworks */ = {isa = PBXBuildFile; productRef = E68BD83D2E9092A900630787 /* NIOFoundationCompat */; };
+		E631ED0C2E90948800A7563E /* NIOHTTP1 in Frameworks */ = {isa = PBXBuildFile; productRef = E68BD83E2E9092A900630787 /* NIOHTTP1 */; };
+		E631ED0D2E90948800A7563E /* NIOPosix in Frameworks */ = {isa = PBXBuildFile; productRef = E68BD83F2E9092A900630787 /* NIOPosix */; };
+		E631ED0E2E90948800A7563E /* NIOTLS in Frameworks */ = {isa = PBXBuildFile; productRef = E68BD8402E9092A900630787 /* NIOTLS */; };
+		E631ED0F2E90948800A7563E /* NIOTestUtils in Frameworks */ = {isa = PBXBuildFile; productRef = E68BD8412E9092A900630787 /* NIOTestUtils */; };
+		E631ED102E90948800A7563E /* NIOWebSocket in Frameworks */ = {isa = PBXBuildFile; productRef = E68BD8422E9092A900630787 /* NIOWebSocket */; };
+		E631ED112E90948800A7563E /* _NIOConcurrency in Frameworks */ = {isa = PBXBuildFile; productRef = E68BD8432E9092A900630787 /* _NIOConcurrency */; };
+		E631ED122E90948800A7563E /* _NIOFileSystem in Frameworks */ = {isa = PBXBuildFile; productRef = E68BD8442E9092A900630787 /* _NIOFileSystem */; };
+		E631ED132E90948800A7563E /* _NIOFileSystemFoundationCompat in Frameworks */ = {isa = PBXBuildFile; productRef = E68BD8452E9092A900630787 /* _NIOFileSystemFoundationCompat */; };
+		E631ED142E90948800A7563E /* WebSocketKit in Frameworks */ = {isa = PBXBuildFile; productRef = E68BD8472E9092B100630787 /* WebSocketKit */; };
+		E631ED152E90948800A7563E /* NIOTransportServices in Frameworks */ = {isa = PBXBuildFile; productRef = E68BD8492E9092BB00630787 /* NIOTransportServices */; };
+		E96D0476EA6E919968A1F3C7 /* LogTapServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7589C7CD61455B415F260418 /* LogTapServer.swift */; };
+		EAA0A093AFE43B4B27883B36 /* LogTapPrintBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A3DEA0291AAE499650252EE /* LogTapPrintBridge.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		09FAF0CE4F027FF1C7B8D732 /* LogTapFramework.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = LogTapFramework.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		24AF2B98214BC7F891CFFEAA /* LogTapLogSink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogTapLogSink.swift; sourceTree = "<group>"; };
+		261F26DE8A50139FE73F5ED2 /* LogTapLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogTapLogger.swift; sourceTree = "<group>"; };
+		2D2C76AF22B418B6E4E720DB /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		50376E624D10D9C245CB97C6 /* DeviceAppInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceAppInfo.swift; sourceTree = "<group>"; };
+		530D0CC9FF4454CA8BAB149D /* URLProtocol+Interceptor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "URLProtocol+Interceptor.swift"; sourceTree = "<group>"; };
+		5A3DEA0291AAE499650252EE /* LogTapPrintBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogTapPrintBridge.swift; sourceTree = "<group>"; };
+		7589C7CD61455B415F260418 /* LogTapServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogTapServer.swift; sourceTree = "<group>"; };
+		A22406AA664E475C190214C0 /* Resources.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Resources.swift; sourceTree = "<group>"; };
+		A6501DED7C0C0E48A33ADC72 /* LogEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogEvent.swift; sourceTree = "<group>"; };
+		D3BB1BEA670C821405C3DFBA /* LogTap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogTap.swift; sourceTree = "<group>"; };
+		F0479E30BB2B2746ECB70926 /* WebSocketLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebSocketLogger.swift; sourceTree = "<group>"; };
+		F376AE3EADFC5B9BDC157B84 /* LogTapStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogTapStore.swift; sourceTree = "<group>"; };
+		FFAA137FDC5351D62DF23711 /* LogTapSinkAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogTapSinkAdapter.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		E68BD89C2E90944900630787 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E631ED152E90948800A7563E /* NIOTransportServices in Frameworks */,
+				E631ED142E90948800A7563E /* WebSocketKit in Frameworks */,
+				E631ED132E90948800A7563E /* _NIOFileSystemFoundationCompat in Frameworks */,
+				E631ED122E90948800A7563E /* _NIOFileSystem in Frameworks */,
+				E631ED112E90948800A7563E /* _NIOConcurrency in Frameworks */,
+				E631ED102E90948800A7563E /* NIOWebSocket in Frameworks */,
+				E631ED0F2E90948800A7563E /* NIOTestUtils in Frameworks */,
+				E631ED0E2E90948800A7563E /* NIOTLS in Frameworks */,
+				E631ED0D2E90948800A7563E /* NIOPosix in Frameworks */,
+				E631ED0C2E90948800A7563E /* NIOHTTP1 in Frameworks */,
+				E631ED0B2E90948800A7563E /* NIOFoundationCompat in Frameworks */,
+				E631ED0A2E90948800A7563E /* NIOEmbedded in Frameworks */,
+				E631ED092E90948800A7563E /* NIOCore in Frameworks */,
+				E631ED082E90948800A7563E /* NIOConcurrencyHelpers in Frameworks */,
+				E631ED072E90948800A7563E /* NIO in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		0563B474F80DB340DA2828C0 /* Server */ = {
+			isa = PBXGroup;
+			children = (
+				7589C7CD61455B415F260418 /* LogTapServer.swift */,
+			);
+			path = Server;
+			sourceTree = "<group>";
+		};
+		2E434C6520583FE179E54628 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				72DB37DC495247528351A73A /* LogTapFramework */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		3D0D738BD0F0C0C149D1D15A /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				09FAF0CE4F027FF1C7B8D732 /* LogTapFramework.framework */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		51134BBFF02D9569924BDFFB /* Dto */ = {
+			isa = PBXGroup;
+			children = (
+				50376E624D10D9C245CB97C6 /* DeviceAppInfo.swift */,
+			);
+			path = Dto;
+			sourceTree = "<group>";
+		};
+		656C6F4A0FDB95A25563A442 /* Interceptor */ = {
+			isa = PBXGroup;
+			children = (
+				530D0CC9FF4454CA8BAB149D /* URLProtocol+Interceptor.swift */,
+			);
+			path = Interceptor;
+			sourceTree = "<group>";
+		};
+		6DF3C3C264D1AC59D9EA4653 /* Utils */ = {
+			isa = PBXGroup;
+			children = (
+				A22406AA664E475C190214C0 /* Resources.swift */,
+			);
+			path = Utils;
+			sourceTree = "<group>";
+		};
+		72DB37DC495247528351A73A /* LogTapFramework */ = {
+			isa = PBXGroup;
+			children = (
+				2D2C76AF22B418B6E4E720DB /* Info.plist */,
+				D3BB1BEA670C821405C3DFBA /* LogTap.swift */,
+				51134BBFF02D9569924BDFFB /* Dto */,
+				656C6F4A0FDB95A25563A442 /* Interceptor */,
+				7FBEF413DA5B64ED30FCC803 /* Log */,
+				74018A8A4EE44076AB76429A /* Logger */,
+				0563B474F80DB340DA2828C0 /* Server */,
+				6DF3C3C264D1AC59D9EA4653 /* Utils */,
+				C07026126452C5AED0BF553B /* Websocket */,
+			);
+			path = LogTapFramework;
+			sourceTree = "<group>";
+		};
+		74018A8A4EE44076AB76429A /* Logger */ = {
+			isa = PBXGroup;
+			children = (
+				261F26DE8A50139FE73F5ED2 /* LogTapLogger.swift */,
+				24AF2B98214BC7F891CFFEAA /* LogTapLogSink.swift */,
+				5A3DEA0291AAE499650252EE /* LogTapPrintBridge.swift */,
+				FFAA137FDC5351D62DF23711 /* LogTapSinkAdapter.swift */,
+			);
+			path = Logger;
+			sourceTree = "<group>";
+		};
+		7FBEF413DA5B64ED30FCC803 /* Log */ = {
+			isa = PBXGroup;
+			children = (
+				A6501DED7C0C0E48A33ADC72 /* LogEvent.swift */,
+				F376AE3EADFC5B9BDC157B84 /* LogTapStore.swift */,
+			);
+			path = Log;
+			sourceTree = "<group>";
+		};
+		C07026126452C5AED0BF553B /* Websocket */ = {
+			isa = PBXGroup;
+			children = (
+				F0479E30BB2B2746ECB70926 /* WebSocketLogger.swift */,
+			);
+			path = Websocket;
+			sourceTree = "<group>";
+		};
+		E68BD89D2E90945D00630787 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		FCF74DF9A23D5EFD540ABEC5 = {
+			isa = PBXGroup;
+			children = (
+				2E434C6520583FE179E54628 /* Sources */,
+				3D0D738BD0F0C0C149D1D15A /* Products */,
+				E68BD89D2E90945D00630787 /* Frameworks */,
+			);
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		55B30824CF89C6CE8DA6FFC5 /* LogTapFramework */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B633395749D5EDBAE7596CFA /* Build configuration list for PBXNativeTarget "LogTapFramework" */;
+			buildPhases = (
+				1FE0A6B49BF66BA063C921C3 /* Sources */,
+				E68BD89C2E90944900630787 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = LogTapFramework;
+			packageProductDependencies = (
+				E68BD8392E9092A900630787 /* NIO */,
+				E68BD83A2E9092A900630787 /* NIOConcurrencyHelpers */,
+				E68BD83B2E9092A900630787 /* NIOCore */,
+				E68BD83C2E9092A900630787 /* NIOEmbedded */,
+				E68BD83D2E9092A900630787 /* NIOFoundationCompat */,
+				E68BD83E2E9092A900630787 /* NIOHTTP1 */,
+				E68BD83F2E9092A900630787 /* NIOPosix */,
+				E68BD8402E9092A900630787 /* NIOTLS */,
+				E68BD8412E9092A900630787 /* NIOTestUtils */,
+				E68BD8422E9092A900630787 /* NIOWebSocket */,
+				E68BD8432E9092A900630787 /* _NIOConcurrency */,
+				E68BD8442E9092A900630787 /* _NIOFileSystem */,
+				E68BD8452E9092A900630787 /* _NIOFileSystemFoundationCompat */,
+				E68BD8472E9092B100630787 /* WebSocketKit */,
+				E68BD8492E9092BB00630787 /* NIOTransportServices */,
+			);
+			productName = LogTapFramework;
+			productReference = 09FAF0CE4F027FF1C7B8D732 /* LogTapFramework.framework */;
+			productType = "com.apple.product-type.framework";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		AA4F59E362D20AABFA414D70 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+			};
+			buildConfigurationList = 01AFC5EB6D4950972731742A /* Build configuration list for PBXProject "LogTapFramework" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = FCF74DF9A23D5EFD540ABEC5;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				E68BD8382E9092A900630787 /* XCRemoteSwiftPackageReference "swift-nio" */,
+				E68BD8462E9092B100630787 /* XCRemoteSwiftPackageReference "websocket-kit" */,
+				E68BD8482E9092BB00630787 /* XCRemoteSwiftPackageReference "swift-nio-transport-services" */,
+			);
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				55B30824CF89C6CE8DA6FFC5 /* LogTapFramework */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		1FE0A6B49BF66BA063C921C3 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E1BB2E8A31917C4C1F0359B3 /* DeviceAppInfo.swift in Sources */,
+				707242A491F54CD11F8AD2A8 /* LogEvent.swift in Sources */,
+				6341E0AA9E3EE29B24F28899 /* LogTap.swift in Sources */,
+				8540C0EB17A1664DD3F714AA /* LogTapLogSink.swift in Sources */,
+				3EE403B99FCFD3AE43EF0EC8 /* LogTapLogger.swift in Sources */,
+				EAA0A093AFE43B4B27883B36 /* LogTapPrintBridge.swift in Sources */,
+				E96D0476EA6E919968A1F3C7 /* LogTapServer.swift in Sources */,
+				0E984B67744E25C42B47278E /* LogTapSinkAdapter.swift in Sources */,
+				B603DE71406978978792B930 /* LogTapStore.swift in Sources */,
+				B0EFC6368A3014296ABAE170 /* Resources.swift in Sources */,
+				80738B9D53394333931FA06D /* URLProtocol+Interceptor.swift in Sources */,
+				D1D8267FFA7613F0678F2981 /* WebSocketLogger.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		3DEF754A1A991A33C8B57C81 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "";
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				INFOPLIST_FILE = Sources/LogTapFramework/Info.plist;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.github.husseinhj.LogTapFramework;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Release;
+		};
+		9E85800694B786FA2DDB9073 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		B4C4C870011FF6590EED9B64 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "";
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				INFOPLIST_FILE = Sources/LogTapFramework/Info.plist;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.github.husseinhj.LogTapFramework;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Debug;
+		};
+		C9284771EFE1204D0BF54C39 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		01AFC5EB6D4950972731742A /* Build configuration list for PBXProject "LogTapFramework" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C9284771EFE1204D0BF54C39 /* Debug */,
+				9E85800694B786FA2DDB9073 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		B633395749D5EDBAE7596CFA /* Build configuration list for PBXNativeTarget "LogTapFramework" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B4C4C870011FF6590EED9B64 /* Debug */,
+				3DEF754A1A991A33C8B57C81 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		E68BD8382E9092A900630787 /* XCRemoteSwiftPackageReference "swift-nio" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-nio.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.86.2;
+			};
+		};
+		E68BD8462E9092B100630787 /* XCRemoteSwiftPackageReference "websocket-kit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/vapor/websocket-kit.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.16.1;
+			};
+		};
+		E68BD8482E9092BB00630787 /* XCRemoteSwiftPackageReference "swift-nio-transport-services" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-nio-transport-services.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.25.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		E68BD8392E9092A900630787 /* NIO */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E68BD8382E9092A900630787 /* XCRemoteSwiftPackageReference "swift-nio" */;
+			productName = NIO;
+		};
+		E68BD83A2E9092A900630787 /* NIOConcurrencyHelpers */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E68BD8382E9092A900630787 /* XCRemoteSwiftPackageReference "swift-nio" */;
+			productName = NIOConcurrencyHelpers;
+		};
+		E68BD83B2E9092A900630787 /* NIOCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E68BD8382E9092A900630787 /* XCRemoteSwiftPackageReference "swift-nio" */;
+			productName = NIOCore;
+		};
+		E68BD83C2E9092A900630787 /* NIOEmbedded */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E68BD8382E9092A900630787 /* XCRemoteSwiftPackageReference "swift-nio" */;
+			productName = NIOEmbedded;
+		};
+		E68BD83D2E9092A900630787 /* NIOFoundationCompat */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E68BD8382E9092A900630787 /* XCRemoteSwiftPackageReference "swift-nio" */;
+			productName = NIOFoundationCompat;
+		};
+		E68BD83E2E9092A900630787 /* NIOHTTP1 */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E68BD8382E9092A900630787 /* XCRemoteSwiftPackageReference "swift-nio" */;
+			productName = NIOHTTP1;
+		};
+		E68BD83F2E9092A900630787 /* NIOPosix */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E68BD8382E9092A900630787 /* XCRemoteSwiftPackageReference "swift-nio" */;
+			productName = NIOPosix;
+		};
+		E68BD8402E9092A900630787 /* NIOTLS */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E68BD8382E9092A900630787 /* XCRemoteSwiftPackageReference "swift-nio" */;
+			productName = NIOTLS;
+		};
+		E68BD8412E9092A900630787 /* NIOTestUtils */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E68BD8382E9092A900630787 /* XCRemoteSwiftPackageReference "swift-nio" */;
+			productName = NIOTestUtils;
+		};
+		E68BD8422E9092A900630787 /* NIOWebSocket */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E68BD8382E9092A900630787 /* XCRemoteSwiftPackageReference "swift-nio" */;
+			productName = NIOWebSocket;
+		};
+		E68BD8432E9092A900630787 /* _NIOConcurrency */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E68BD8382E9092A900630787 /* XCRemoteSwiftPackageReference "swift-nio" */;
+			productName = _NIOConcurrency;
+		};
+		E68BD8442E9092A900630787 /* _NIOFileSystem */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E68BD8382E9092A900630787 /* XCRemoteSwiftPackageReference "swift-nio" */;
+			productName = _NIOFileSystem;
+		};
+		E68BD8452E9092A900630787 /* _NIOFileSystemFoundationCompat */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E68BD8382E9092A900630787 /* XCRemoteSwiftPackageReference "swift-nio" */;
+			productName = _NIOFileSystemFoundationCompat;
+		};
+		E68BD8472E9092B100630787 /* WebSocketKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E68BD8462E9092B100630787 /* XCRemoteSwiftPackageReference "websocket-kit" */;
+			productName = WebSocketKit;
+		};
+		E68BD8492E9092BB00630787 /* NIOTransportServices */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E68BD8482E9092BB00630787 /* XCRemoteSwiftPackageReference "swift-nio-transport-services" */;
+			productName = NIOTransportServices;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = AA4F59E362D20AABFA414D70 /* Project object */;
+}
