@@ -29,9 +29,9 @@
 
 ## 📸 Screenshots
 
-| Network View | Logger View | Detail Drawer | Sample app                                |
-|--------------|-------------|---------------|-------------------------------------------|
-| ![Network screenshot](../projects/LogTapFramework/docs/screenshot-network.png) | ![Logger screenshot](../projects/LogTapIOS/docs/screenshot-logger.png) | ![Drawer screenshot](../projects/LogTapIOS/docs/screenshot-drawer.png) | ![sample screenshot](../projects/LogTapIOS/docs/sample_app.png) |
+| Network View                                        | Logger View                                       | Detail Drawer                                     | Sample app                                |
+|-----------------------------------------------------|---------------------------------------------------|---------------------------------------------------|-------------------------------------------|
+| ![Network screenshot](/docs/screenshot-network.png) | ![Logger screenshot](/docs/screenshot-logger.png) | ![Drawer screenshot](/docs/screenshot-drawer.png) | ![sample screenshot](/docs/sample_app.png) |
 
 ---
 
