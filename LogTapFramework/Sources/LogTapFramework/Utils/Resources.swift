@@ -2598,7 +2598,7 @@ body.ui{ font-size: var(--font-size); font-family: var(--font-ui); }
         function applyStatFilter(kind, toggledOff){
           if (toggledOff) {
             // clear any visual/aria selection on chips
-            allChips.forEach(ch=>{ ch?.setAttribute('aria-pressed','false'); ch?.classList.remove('active'); });
+            allChips.forEach(c=>{ c?.setAttribute('aria-pressed','false'); c?.classList.remove('active'); });
             highlightChip(null); // also sets activeChip = null
             // force view back to Mix and clear method/level/status filters
             if(viewMode) viewMode.value = 'mix';
@@ -3251,6 +3251,60 @@ body.ui{ font-size: var(--font-size); font-family: var(--font-ui); }
             });
           }catch(e){ console.warn('Columns grid setup failed', e); }
         })();
+                             
+    // --- WebSocket with auto-reconnect ---
+         const setWs = (text, cls)=> { if(wsStatus){ wsStatus.textContent = text; wsStatus.classList.remove('status-on','status-off','status-connecting'); if(cls) wsStatus.classList.add(cls); } };
+         let ws = null;
+         let wsReconnectAttempts = 0;
+         function fetchMissed(){
+           try {
+             const lastId = rows.length ? rows[rows.length - 1].id : 0;
+             if(!lastId) return; // nothing yet
+             fetch('/api/logs?sinceId='+lastId+'&limit=2000').then(r=> r.ok ? r.json() : []).then(arr => {
+               if(Array.isArray(arr) && arr.length){
+                 for(const ev of arr){ rows.push(ev); if(matchesFilters(ev)){ tbody.appendChild(renderRow(ev)); } }
+                 if(autoScroll?.checked) tbody.lastElementChild?.scrollIntoView({block:'end'});
+                 renderStats();
+               }
+             }).catch(()=>{});
+           } catch(e) { /* ignore */ }
+         }
+         function connectWs(){
+           setWs('● Connecting…','status-connecting');
+           const url = (location.protocol==='https:'?'wss':'ws')+'://'+location.host+'/ws';
+           try { if(ws){ try{ ws.close(); }catch{} } } catch {}
+           try {
+             ws = new WebSocket(url);
+           } catch(err){
+             console.warn('[LogTap] WS create failed', err);
+             scheduleReconnect();
+             return;
+           }
+           ws.addEventListener('open', () => {
+             setWs('● Connected','status-on');
+             const firstConnect = (wsReconnectAttempts === 0);
+             wsReconnectAttempts = 0; // reset attempts after success
+             if(!firstConnect){ fetchMissed(); }
+           });
+           
+           function scheduleReconnect(){
+             setWs('● Disconnected','status-off');
+             const attempt = wsReconnectAttempts++;
+             // Exponential-ish backoff: 0->1s,1->1.6s,2->2.5s,3->4s,... capped at 15s
+             const delay = Math.min(15000, Math.round(1000 * Math.pow(1.6, attempt)));
+             // Update status to show reconnection intent (optional)
+             if(wsStatus){ wsStatus.textContent = '● Reconnecting in '+Math.ceil(delay/1000)+'s…'; }
+             setTimeout(()=>{ connectWs(); }, delay);
+           }
+           ws.addEventListener('close', () => scheduleReconnect());
+           ws.addEventListener('error', () => scheduleReconnect());
+           ws.onmessage = (e)=>{
+             try{ const ev = JSON.parse(e.data); rows.push(ev); if(matchesFilters(ev)){ tbody.appendChild(renderRow(ev)); if(autoScroll?.checked) tbody.lastElementChild?.scrollIntoView({block:'end'}); renderStats(); } }
+             catch(parseErr){ console.warn('[LogTap] bad WS payload', parseErr); }
+           };
+         }
+         function scheduleReconnect(){ /* fallback ref for early failures */ setTimeout(()=> connectWs(), 1500); }
+         connectWs();
 
         // Load saved drawer width and enable drag to resize
         loadDrawerWidth();
