@@ -78,3 +78,5 @@ playground.xcworkspace
 # Temporary
 *.log
 *.env
+/.idea/
+/LogTapFramework/.swiftpm/
