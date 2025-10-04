@@ -49,7 +49,7 @@ struct LogTapIOS_SampleApp: App {
         }
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
-                logI("App became active")
+                print("App became active \n welcome to a LogTap demo! \n hiiii")
             }
         }
     }

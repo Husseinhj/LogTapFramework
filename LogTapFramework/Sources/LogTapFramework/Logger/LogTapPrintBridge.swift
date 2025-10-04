@@ -79,6 +79,9 @@ public final class LogTapPrintBridge {
     public func stop() {
         guard isRunning else { return }
         isRunning = false
+        flushTimer?.cancel()
+        flushBuffer(isStdErr: false)
+        flushBuffer(isStdErr: true)
 
         // Flush any remaining buffers before closing
         flushBuffer(isStdErr: false)
@@ -138,6 +141,19 @@ public final class LogTapPrintBridge {
 
     // MARK: - Internals
 
+    private var flushTimer: DispatchSourceTimer?
+    private let flushInterval: TimeInterval = 0.1 // 100ms
+
+    private func scheduleFlush(isStdErr: Bool) {
+        flushTimer?.cancel()
+        flushTimer = DispatchSource.makeTimerSource(queue: q)
+        flushTimer?.schedule(deadline: .now() + flushInterval)
+        flushTimer?.setEventHandler { [weak self] in
+            self?.flushBuffer(isStdErr: isStdErr)
+        }
+        flushTimer?.resume()
+    }
+
     private func consume(handle: FileHandle, isStdErr: Bool) {
         let data = handle.availableData
         if data.isEmpty { return } // pipe closed
@@ -145,38 +161,14 @@ public final class LogTapPrintBridge {
         if isStdErr { writeToFD(errOrig, data: data) } else { writeToFD(outOrig, data: data) }
         q.async {
             if isStdErr { self.errBuffer.append(data) } else { self.outBuffer.append(data) }
-            self.drain(isStdErr: isStdErr)
+            self.scheduleFlush(isStdErr: isStdErr)
         }
     }
 
     private func drain(isStdErr: Bool) {
-        var buffer = isStdErr ? errBuffer : outBuffer
-        let newline = Data([0x0A])
-        var lines: [String] = []
-        var searchStart = 0
-        while searchStart < buffer.count {
-            guard let range = buffer[searchStart..<buffer.count].firstRange(of: newline) else { break }
-            let end = searchStart + range.lowerBound
-            if end > buffer.count { break } // Safety check
-            let lineData = buffer.subdata(in: searchStart..<end)
-            let line = String(data: lineData, encoding: .utf8) ?? String(decoding: lineData, as: UTF8.self)
-            lines.append(line)
-            searchStart = end + 1 // skip newline
-        }
-        // Remove processed data from buffer
-        if searchStart > 0 && searchStart <= buffer.count {
-            buffer.removeSubrange(0..<searchStart)
-        }
-        // Only forward if we have at least one complete line
-        if !lines.isEmpty {
-            let message = lines.joined(separator: "\n")
-            forward(line: message, isStdErr: isStdErr)
-        }
-        // Do NOT forward partial buffer here; keep it for next chunk or flush on stop
-        if isStdErr { errBuffer = buffer } else { outBuffer = buffer }
+        // No-op: handled by flushBuffer
     }
 
-    // Flush any remaining buffer as a final log event (e.g., on stop)
     private func flushBuffer(isStdErr: Bool) {
         let buffer = isStdErr ? errBuffer : outBuffer
         if !buffer.isEmpty {
@@ -257,6 +249,11 @@ public final class LogTapPrintBridge {
 
         if (tag == nil || tag!.isEmpty), useCallerAsDefaultTag {
             tag = "print"
+        }
+
+        // Ignore logs from LogTapLogger.shared (tag contains "(L:")
+        if let t = tag, t.contains("(L:") {
+            return
         }
 
         sink.emitLog(level: level, tag: tag, message: message)
