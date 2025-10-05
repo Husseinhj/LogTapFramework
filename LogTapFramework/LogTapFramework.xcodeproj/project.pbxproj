@@ -35,6 +35,7 @@
 		E631EDBD2E917A3600A7563E /* Resources+HTML.swift in Sources */ = {isa = PBXBuildFile; fileRef = E631EDBB2E917A3600A7563E /* Resources+HTML.swift */; };
 		E631EDBE2E917A3600A7563E /* Resources+JS.swift in Sources */ = {isa = PBXBuildFile; fileRef = E631EDBC2E917A3600A7563E /* Resources+JS.swift */; };
 		E631EDBF2E917A3600A7563E /* Resources+CSS.swift in Sources */ = {isa = PBXBuildFile; fileRef = E631EDBA2E917A3600A7563E /* Resources+CSS.swift */; };
+		E6B517572E924E0400C2BC83 /* URLSessionWebSocketInterceptor.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6B517562E924E0400C2BC83 /* URLSessionWebSocketInterceptor.swift */; };
 		E96D0476EA6E919968A1F3C7 /* LogTapServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7589C7CD61455B415F260418 /* LogTapServer.swift */; };
 		EAA0A093AFE43B4B27883B36 /* LogTapPrintBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A3DEA0291AAE499650252EE /* LogTapPrintBridge.swift */; };
 /* End PBXBuildFile section */
@@ -54,6 +55,7 @@
 		E631EDBA2E917A3600A7563E /* Resources+CSS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Resources+CSS.swift"; sourceTree = "<group>"; };
 		E631EDBB2E917A3600A7563E /* Resources+HTML.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Resources+HTML.swift"; sourceTree = "<group>"; };
 		E631EDBC2E917A3600A7563E /* Resources+JS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Resources+JS.swift"; sourceTree = "<group>"; };
+		E6B517562E924E0400C2BC83 /* URLSessionWebSocketInterceptor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = URLSessionWebSocketInterceptor.swift; sourceTree = "<group>"; };
 		F0479E30BB2B2746ECB70926 /* WebSocketLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebSocketLogger.swift; sourceTree = "<group>"; };
 		F376AE3EADFC5B9BDC157B84 /* LogTapStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogTapStore.swift; sourceTree = "<group>"; };
 		FFAA137FDC5351D62DF23711 /* LogTapSinkAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogTapSinkAdapter.swift; sourceTree = "<group>"; };
@@ -120,6 +122,7 @@
 		656C6F4A0FDB95A25563A442 /* Interceptor */ = {
 			isa = PBXGroup;
 			children = (
+				E6B517562E924E0400C2BC83 /* URLSessionWebSocketInterceptor.swift */,
 				530D0CC9FF4454CA8BAB149D /* URLProtocol+Interceptor.swift */,
 			);
 			path = Interceptor;
@@ -281,6 +284,7 @@
 				E96D0476EA6E919968A1F3C7 /* LogTapServer.swift in Sources */,
 				0E984B67744E25C42B47278E /* LogTapSinkAdapter.swift in Sources */,
 				B603DE71406978978792B930 /* LogTapStore.swift in Sources */,
+				E6B517572E924E0400C2BC83 /* URLSessionWebSocketInterceptor.swift in Sources */,
 				B0EFC6368A3014296ABAE170 /* Resources.swift in Sources */,
 				80738B9D53394333931FA06D /* URLProtocol+Interceptor.swift in Sources */,
 				D1D8267FFA7613F0678F2981 /* WebSocketLogger.swift in Sources */,

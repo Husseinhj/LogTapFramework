@@ -91,7 +91,7 @@ final class PlaygroundVM: ObservableObject {
     @Published var wsConnected = false
     @Published var wsLastEvent = "—"
 
-    private var ws: URLSessionWebSocketTask?
+    private var ws: LogTapWebSocket?
     private let wsSession: URLSession = {
         let cfg = URLSessionConfiguration.default
         cfg.waitsForConnectivity = true
@@ -136,21 +136,20 @@ final class PlaygroundVM: ObservableObject {
     // MARK: WebSocket helpers
     func wsConnect(_ url: URL) {
         ws?.cancel(with: .goingAway, reason: nil)
-        let task = wsSession.webSocketTask(with: url)
-        ws = task
-        task.resume()
+        let logged = makeLoggedWebSocket(session: wsSession, url: url)
+        ws = logged
+        logged.resume()
         wsConnected = true
         wsLastEvent = "Connecting…"
         logI("WS connecting → \(url.absoluteString)")
-        receiveLoop()
     }
 
     func wsSend(_ text: String) {
         guard let ws else { logE("WS not connected"); return }
         logD("WS → send: \(text)")
-        ws.send(.string(text)) { [weak self] err in
-            if let err { self?.wsLastEvent = "Send error: \(err.localizedDescription)"; logE("WS send error: \(err.localizedDescription)") }
-        }
+        ws.send(text)
+        // The wrapper logs errors internally. Optimistically update UI; detailed errors are emitted to LogTap.
+        wsLastEvent = "→ sent"
     }
 
     func wsDisconnect() {
@@ -159,31 +158,6 @@ final class PlaygroundVM: ObservableObject {
         wsConnected = false
         wsLastEvent = "Disconnected"
         logI("WS disconnected")
-    }
-
-    private func receiveLoop() {
-        guard let ws else { return }
-        ws.receive { [weak self] result in
-            switch result {
-            case .failure(let err):
-                self?.wsLastEvent = "Receive error: \(err.localizedDescription)"
-                self?.wsConnected = false
-                logE("WS receive error: \(err.localizedDescription)")
-            case .success(let msg):
-                switch msg {
-                case .string(let text):
-                    self?.wsLastEvent = "← text (\(text.count))"
-                    logD("WS ← text: \(text)")
-                case .data(let data):
-                    self?.wsLastEvent = "← binary (\(data.count) bytes)"
-                    logD("WS ← binary (\(data.count) bytes)")
-                @unknown default:
-                    self?.wsLastEvent = "← unknown"
-                    logW("WS ← unknown message")
-                }
-                self?.receiveLoop() // keep listening
-            }
-        }
     }
 }
 

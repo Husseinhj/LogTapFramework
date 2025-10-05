@@ -109,7 +109,12 @@ public final class LogTap {
         _ = store.subscribe { [weak self] ev in
             self?.server.broadcast(event: ev)
         }
-        
+
+        // NOTE: Automatic interceptor installation disabled to avoid fragile swizzling.
+        // Use the explicit `makeLoggedWebSocket(session:url:)` wrapper or
+        // `URLSessionWebSocketTask.attach(task:)` to enable WebSocket logging.
+
+
         // helpful boot log
         let urls = self.urls()
         LogTapLogger.shared.d("LogTap server ready at \(urls.joined(separator: ", "))")

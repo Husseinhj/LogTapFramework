@@ -94,10 +94,8 @@ enum ResourceJS {
          
          // ---- State ----
          let rows = [];
-         let filtered = [];
-         let filterText = '';
-         let selectedIdx = -1;
-         let currentEv = null;
+         // Seen ids for deduplication between initial snapshot, websocket pushes, and missed-fetches
+         let seenIds = new Set();
          
          // ---- Theme ----
          function applyTheme(t){
@@ -937,6 +935,8 @@ enum ResourceJS {
            loadDeviceInfo();
            try{ const res = await fetch('/api/logs?limit=1000'); if(!res.ok) throw new Error('HTTP '+res.status); rows = await res.json(); }
            catch(err){ console.error('[LogTap] failed to fetch /api/logs', err); rows=[]; }
+           // Populate seenIds from the initial snapshot so websocket messages don't duplicate entries
+           try{ if(Array.isArray(rows)) rows.forEach(r => { if(r && r.id != null) seenIds.add(Number(r.id)); }); }catch(e){}
            applyMode();
            renderAll();
            try{
@@ -948,7 +948,7 @@ enum ResourceJS {
              ws.addEventListener('open', on);
              ws.addEventListener('close', off);
              ws.addEventListener('error', off);
-             ws.onmessage = (e)=>{ try{ const ev = JSON.parse(e.data); rows.push(ev); if(matchesFilters(ev)){ tbody.appendChild(renderRow(ev)); if(autoScroll?.checked) tbody.lastElementChild?.scrollIntoView({block:'end'}); renderStats(); } }catch(parseErr){ console.warn('[LogTap] bad WS payload', parseErr); } };
+             ws.onmessage = (e)=>{ try{ const ev = JSON.parse(e.data); const id = ev && ev.id!=null ? Number(ev.id) : null; if(id!=null && seenIds.has(id)){ return; } if(id!=null) seenIds.add(id); rows.push(ev); if(matchesFilters(ev)){ tbody.appendChild(renderRow(ev)); if(autoScroll?.checked) tbody.lastElementChild?.scrollIntoView({block:'end'}); renderStats(); } }catch(parseErr){ console.warn('[LogTap] bad WS payload', parseErr); } };
            }catch(wsErr){ console.warn('[LogTap] WS setup failed', wsErr); if(wsStatus){ wsStatus.textContent='● Disconnected'; wsStatus.classList.remove('status-on','status-connecting'); wsStatus.classList.add('status-off'); } }
          }
          // === Settings popover wiring ===
@@ -1040,13 +1040,13 @@ enum ResourceJS {
               if(!lastId) return; // nothing yet
               fetch('/api/logs?sinceId='+lastId+'&limit=2000').then(r=> r.ok ? r.json() : []).then(arr => {
                 if(Array.isArray(arr) && arr.length){
-                  for(const ev of arr){ rows.push(ev); if(matchesFilters(ev)){ tbody.appendChild(renderRow(ev)); } }
-                  if(autoScroll?.checked) tbody.lastElementChild?.scrollIntoView({block:'end'});
-                  renderStats();
-                }
-              }).catch(()=>{});
-            } catch(e) { /* ignore */ }
-          }
+                  for(const ev of arr){ const id = ev && ev.id!=null ? Number(ev.id) : null; if(id!=null && seenIds.has(id)) continue; if(id!=null) seenIds.add(id); rows.push(ev); if(matchesFilters(ev)){ tbody.appendChild(renderRow(ev)); } }
+                   if(autoScroll?.checked) tbody.lastElementChild?.scrollIntoView({block:'end'});
+                   renderStats();
+                 }
+               }).catch(()=>{});
+             } catch(e) { /* ignore */ }
+           }
           function connectWs(){
             setWs('● Connecting…','status-connecting');
             const url = (location.protocol==='https:'?'wss':'ws')+'://'+location.host+'/ws';
@@ -1077,7 +1077,7 @@ enum ResourceJS {
             ws.addEventListener('close', () => scheduleReconnect());
             ws.addEventListener('error', () => scheduleReconnect());
             ws.onmessage = (e)=>{
-              try{ const ev = JSON.parse(e.data); rows.push(ev); if(matchesFilters(ev)){ tbody.appendChild(renderRow(ev)); if(autoScroll?.checked) tbody.lastElementChild?.scrollIntoView({block:'end'}); renderStats(); } }
+              try{ const ev = JSON.parse(e.data); const id = ev && ev.id!=null ? Number(ev.id) : null; if(id!=null && seenIds.has(id)){ return; } if(id!=null) seenIds.add(id); rows.push(ev); if(matchesFilters(ev)){ tbody.appendChild(renderRow(ev)); if(autoScroll?.checked) tbody.lastElementChild?.scrollIntoView({block:'end'}); renderStats(); } }
               catch(parseErr){ console.warn('[LogTap] bad WS payload', parseErr); }
             };
           }

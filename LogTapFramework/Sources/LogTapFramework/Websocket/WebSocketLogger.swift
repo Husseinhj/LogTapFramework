@@ -97,57 +97,76 @@ public final class LogTapWebSocket {
         )
     }
     
-    private func receiveLoop() {
+    internal func receiveLoop() {
+        // Defensive: ensure the task actually supports the receive API at runtime.
+        // On some runtime configurations the underlying object may not implement the
+        // expected selector (e.g. when using a session that doesn't support WebSockets),
+        // which would otherwise cause an "unrecognized selector" crash.
+        let sel = Selector(("receiveMessageWithCompletionHandler:"))
+        guard (task as AnyObject).responds(to: sel) else {
+            let clsName = String(describing: type(of: task))
+            LogTap.shared.emit(
+                LogEvent(
+                    kind: .websocket,
+                    direction: .error,
+                    summary: "WS receive not supported on this session/task (type: \(clsName))",
+                    reason: "Underlying task of type \(clsName) does not respond to receiveMessageWithCompletionHandler:",
+                    tag: "WebSocket"
+                )
+            )
+            return
+        }
+
         task.receive { [weak self] result in
             guard let self else { return }
-            switch result {
-            case .success(let msg):
-                switch msg {
-                case .string(let s):
-                    LogTap.shared.emit(
-                        LogEvent(
-                            kind: .websocket,
-                            direction: .inbound,
-                            summary: "WS ← text \(s.prefix(80))\(s.count > 80 ? "…" : "")",
-                            bodyPreview: s,
-                            bodyIsTruncated: s.count > 10_000, 
-                            tag: "WebSocket"
-                        )
-                    )
-                case .data(let d):
-                    LogTap.shared.emit(
-                        LogEvent(
-                            kind: .websocket,
-                            direction: .inbound,
-                            summary: "WS ← binary \(d.count) bytes",
-                            bodyBytes: d.count,
-                            tag: "WebSocket"
-                        )
-                    )
-                @unknown default:
-                    LogTap.shared.emit(
-                        LogEvent(
-                            kind: .websocket,
-                            direction: .inbound,
-                            summary: "WS ← (unknown message)", 
-                            tag: "WebSocket"
-                        )
-                    )
-                }
-            case .failure(let err):
-                LogTap.shared.emit(
-                    LogEvent(
-                        kind: .websocket,
-                        direction: .error,
-                        summary: "WS ERROR \(err.localizedDescription)",
-                        reason: err.localizedDescription,
-                        tag: "WebSocket"
-                    )
-                )
-            }
-            if self.isOpen { self.receiveLoop() }
-        }
-    }
+             switch result {
+             case .success(let msg):
+                 switch msg {
+                 case .string(let s):
+                     LogTap.shared.emit(
+                         LogEvent(
+                             kind: .websocket,
+                             direction: .inbound,
+                             summary: "WS ← text \(s.prefix(80))\(s.count > 80 ? "…" : "")",
+                             bodyPreview: s,
+                             bodyIsTruncated: s.count > 10_000,
+                             tag: "WebSocket"
+                         )
+                     )
+                 case .data(let d):
+                     LogTap.shared.emit(
+                         LogEvent(
+                             kind: .websocket,
+                             direction: .inbound,
+                             summary: "WS ← binary \(d.count) bytes",
+                             bodyBytes: d.count,
+                             tag: "WebSocket"
+                         )
+                     )
+                 @unknown default:
+                     LogTap.shared.emit(
+                         LogEvent(
+                             kind: .websocket,
+                             direction: .inbound,
+                             summary: "WS ← (unknown message)",
+                             tag: "WebSocket"
+                         )
+                     )
+                 }
+             case .failure(let err):
+                 LogTap.shared.emit(
+                     LogEvent(
+                         kind: .websocket,
+                         direction: .error,
+                         summary: "WS ERROR \(err.localizedDescription)",
+                         reason: err.localizedDescription,
+                         tag: "WebSocket"
+                     )
+                 )
+             }
+             if self.isOpen { self.receiveLoop() }
+         }
+     }
 }
 
 /// Convenience factory
