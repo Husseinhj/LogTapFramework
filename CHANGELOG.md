@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+### 0.6.0 - 2025-10-21
+- Fix loading the library
+
 ### 0.5.0 - 2025-10-5
 - Change library from LogTapIOS to LogTapFramework
 
