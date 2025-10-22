@@ -96,7 +96,10 @@ enum ResourceJS {
          let rows = [];
          // Seen ids for deduplication between initial snapshot, websocket pushes, and missed-fetches
          let seenIds = new Set();
-         
+         // Explicit filter state declarations (avoid implicit globals / strict mode issues)
+         let filterText = '';
+         let filtered = [];
+
          // ---- Theme ----
          function applyTheme(t){
            const theme = (t === 'light' || t === 'dark') ? t : 'dark';
@@ -939,6 +942,27 @@ enum ResourceJS {
            try{ if(Array.isArray(rows)) rows.forEach(r => { if(r && r.id != null) seenIds.add(Number(r.id)); }); }catch(e){}
            applyMode();
            renderAll();
+           // Fallback: if rows exist but nothing is visible, clear filters & re-render
+           function ensureVisibleAfterBootstrap(){
+             try{
+               if(rows.length && (!tbody.firstElementChild || filtered.length===0)){
+                 console.warn('[LogTap] fallback: resetting filters to show initial logs');
+                 // Reset UI filter controls
+                 if(search){ search.value=''; filterText=''; }
+                 if(methodFilter) methodFilter.value='';
+                 if(statusFilter) statusFilter.value='';
+                 if(statusCodeFilter) statusCodeFilter.value='';
+                 if(levelFilter) levelFilter.value='';
+                 if(viewMode) viewMode.value='mix';
+                 applyMode();
+                 renderAll();
+               }
+             }catch(e){ console.warn('ensureVisibleAfterBootstrap failed', e); }
+           }
+           // Immediate check and delayed re-check (in case of async CSS/layout or late script errors)
+           ensureVisibleAfterBootstrap();
+           setTimeout(ensureVisibleAfterBootstrap, 300);
+           setTimeout(ensureVisibleAfterBootstrap, 1200);
            try{
              const setWs = (text, cls)=>{ if(wsStatus){ wsStatus.textContent = text; wsStatus.classList.remove('status-on','status-off','status-connecting'); if(cls) wsStatus.classList.add(cls); } };
              setWs('● Connecting…', 'status-connecting');

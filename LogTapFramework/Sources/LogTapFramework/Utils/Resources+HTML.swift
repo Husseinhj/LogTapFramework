@@ -128,7 +128,7 @@ enum ResourceHTML {
           <button id="clearBtn" class="icon" title="Clear all logs" aria-label="Clear all logs">
             <span class="material-symbols-outlined" aria-hidden="true">delete_sweep</span>
           </button>
-          <button id="themeToggle" class="icon" title="Toggle theme" aria-label="Toggle theme">
+            <button id="themeToggle" class="icon" title="Toggle theme" aria-label="Toggle theme">
             <span class="material-symbols-outlined ico-sun" aria-hidden="true">light_mode</span>
             <span class="material-symbols-outlined ico-moon" aria-hidden="true">dark_mode</span>
           </button>
@@ -407,13 +407,12 @@ enum ResourceHTML {
     const tbody = document.querySelector('#logtbl tbody');
     const modeRadios = document.querySelectorAll('input[name="filterMode"]');
 
-    // Persist / restore mode
+    // Persist / restore mode (fallback to empty which means 'all')
     let filterMode = localStorage.getItem('filterMode') || '';
     modeRadios.forEach(r => { r.checked = (r.value === filterMode); });
 
     // Helpers to classify a row
     function hasLevelClass(tr){
-      // Any class like "level-DEBUG", "level-INFO", etc. means logger row
       return Array.from(tr.classList).some(c => c.startsWith('level-'));
     }
     function textOf(sel, root){
@@ -421,23 +420,31 @@ enum ResourceHTML {
       return (el ? (el.textContent || '') : '').trim();
     }
     function rowKind(tr){
-      // Prefer cached data-kind
       if (tr.dataset.kind) return tr.dataset.kind;
-
-      // 1) If row carries a logger level class, it's a LOG row
       if (hasLevelClass(tr)) return tr.dataset.kind = 'LOG';
-
-      // 2) Inspect "Kind" cell text if present
       const kindText = textOf('.col-kind', tr).toUpperCase();
       if (kindText.includes('LOG')) return tr.dataset.kind = 'LOG';
       if (kindText.includes('HTTP') || kindText.includes('WEBSOCKET')) return tr.dataset.kind = 'NETWORK';
-
-      // 3) Heuristic: if method cell looks like an HTTP/WS method, assume NETWORK
       const m = textOf('.col-method', tr).toUpperCase();
       if (/(GET|POST|PUT|PATCH|DELETE|WS)/.test(m)) return tr.dataset.kind = 'NETWORK';
-
-      // 4) Fallback to LOG (better to show in "Log" than hide everything)
       return tr.dataset.kind = 'LOG';
+    }
+
+    // Ensure we don't end up with an empty table due to a stale persisted filter
+    function ensureNotEmpty(){
+      if (!tbody) return;
+      if (!filterMode) return; // already showing all
+      const rows = Array.from(tbody.querySelectorAll('tr'));
+      if (!rows.length) return;
+      const anyVisible = rows.some(tr => tr.style.display !== 'none');
+      if (!anyVisible) {
+        // Reset to ALL
+        filterMode = '';
+        localStorage.removeItem('filterMode');
+        modeRadios.forEach(r => { r.checked = (r.value === '' || r.value === 'all'); });
+        document.body.dataset.mode = 'all';
+        rows.forEach(tr => { tr.style.display = ''; });
+      }
     }
 
     // Apply current filter mode to all current rows
@@ -445,14 +452,20 @@ enum ResourceHTML {
       document.body.dataset.mode = filterMode || 'all';
       if (!tbody) return;
       const rows = tbody.querySelectorAll('tr');
+      let visibleCount = 0;
       rows.forEach(tr => {
-        const kind = rowKind(tr); // computes and caches data-kind
+        const kind = rowKind(tr);
         const show =
           (filterMode === '') ||
           (filterMode === 'network' && kind === 'NETWORK') ||
           (filterMode === 'log' && kind === 'LOG');
         tr.style.display = show ? '' : 'none';
+        if (show) visibleCount++;
       });
+      // If nothing visible due to persisted filter, auto-reset to 'all'
+      if (filterMode && visibleCount === 0) {
+        ensureNotEmpty();
+      }
     }
 
     // MutationObserver: classify and filter newly added rows
@@ -461,7 +474,6 @@ enum ResourceHTML {
         m.addedNodes.forEach(node => {
           if (!(node instanceof HTMLElement)) return;
           if (node.tagName !== 'TR') return;
-          // classify once; value cached on dataset
           rowKind(node);
           if (filterMode) {
             const show =
@@ -471,6 +483,8 @@ enum ResourceHTML {
           }
         });
       }
+      // After batch of inserts, if filter hides everything, reset.
+      ensureNotEmpty();
     });
     if (tbody) mo.observe(tbody, { childList: true });
 
@@ -478,7 +492,11 @@ enum ResourceHTML {
     modeRadios.forEach(r => {
       r.addEventListener('change', (e) => {
         filterMode = e.target.value;
-        localStorage.setItem('filterMode', filterMode);
+        if (filterMode) {
+          localStorage.setItem('filterMode', filterMode);
+        } else {
+          localStorage.removeItem('filterMode');
+        }
         applyMode();
       });
     });
@@ -499,4 +517,3 @@ enum ResourceHTML {
   </html>
   """#
 }
-
