@@ -5,8 +5,10 @@
 //  Created by Hussein Habibi Juybari on 09.09.25.
 //
 
-import UIKit
 import Foundation
+#if canImport(UIKit)
+import UIKit
+#endif
 
 public struct DeviceAppInfo: Codable {
     public let appName: String
@@ -27,12 +29,18 @@ public struct DeviceAppInfo: Codable {
         let appBundle = bundle.bundleIdentifier ?? "unknown.bundle"
         let versionName = (bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String) ?? "0.0"
         let buildNumber = (bundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String) ?? "0"
+        let deviceManufacturer = "Apple"
+        #if canImport(UIKit)
         let osType = UIDevice.current.systemName
         let osVersion = UIDevice.current.systemVersion
-        let deviceManufacturer = "Apple"
         let deviceModel = UIDevice.current.model
         let iconBase64 = Self.base64ForAppIcon(from: bundle)
-
+        #else
+        let osType = "macOS"
+        let osVersion = ProcessInfo.processInfo.operatingSystemVersionString
+        let deviceModel = Self.hardwareModel()
+        let iconBase64: String? = nil // Not attempting macOS icon in a framework context
+        #endif
         return DeviceAppInfo(
             appName: appName,
             appBundle: appBundle,
@@ -46,6 +54,7 @@ public struct DeviceAppInfo: Codable {
         )
     }
 
+    #if canImport(UIKit)
     private static func base64ForAppIcon(from bundle: Bundle) -> String? {
         // Try to resolve the primary icon from Info.plist
         if let iconsDict = bundle.object(forInfoDictionaryKey: "CFBundleIcons") as? [String: Any],
@@ -65,4 +74,21 @@ public struct DeviceAppInfo: Codable {
         }
         return nil
     }
+    #endif
 }
+
+#if !canImport(UIKit)
+private extension DeviceAppInfo {
+    static func hardwareModel() -> String {
+        var size: Int = 0
+        // First call to get required size
+        if sysctlbyname("hw.model", nil, &size, nil, 0) != 0 { return "Mac" }
+        var buf = [CChar](repeating: 0, count: size)
+        let result = buf.withUnsafeMutableBufferPointer { ptr -> Int32 in
+            return sysctlbyname("hw.model", ptr.baseAddress, &size, nil, 0)
+        }
+        if result != 0 { return "Mac" }
+        return String(cString: buf)
+    }
+}
+#endif

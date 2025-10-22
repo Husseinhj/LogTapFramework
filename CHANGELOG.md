@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+### 0.7.0 - 2025-10-22
+- Fix issue to adding LogTapFramework via SPM
+
 ### 0.6.0 - 2025-10-21
 - Fix loading the library
 

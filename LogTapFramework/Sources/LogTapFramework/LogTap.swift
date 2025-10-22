@@ -1,7 +1,9 @@
 // The Swift Programming Language
 // https://docs.swift.org/swift-book
 import Foundation
+#if canImport(UIKit)
 import UIKit
+#endif
 import NIO
 import NIOHTTP1
 import NIOTransportServices
