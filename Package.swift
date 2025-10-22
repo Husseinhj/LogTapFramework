@@ -4,8 +4,7 @@ import PackageDescription
 let package = Package(
     name: "LogTapFramework",
     platforms: [
-        .iOS(.v15),
-        .macOS(.v10_15)
+        .iOS(.v15)
     ],
     products: [
         .library(
@@ -26,7 +25,7 @@ let package = Package(
                 .product(name: "NIOTransportServices", package: "swift-nio-transport-services"),
                 .product(name: "WebSocketKit", package: "websocket-kit")
             ],
-            path: "LogTapFramework/Sources/LogTapFramework"
+            path: "Sources/LogTapFramework"
         )
     ]
 )

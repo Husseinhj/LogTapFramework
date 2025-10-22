@@ -10,6 +10,7 @@
 		5F06CEFA13CDEEFF05F21851 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 064C66DDAA1D36C0CC2F9DC5 /* Assets.xcassets */; };
 		AD9314926A0FBBAC0E3754C0 /* LogTapIOS_SampleApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D469F87330AF7AF3A275CEED /* LogTapIOS_SampleApp.swift */; };
 		E631ED852E90973700A7563E /* LogTapFramework in Frameworks */ = {isa = PBXBuildFile; productRef = E68BD8372E90927200630787 /* LogTapFramework */; };
+		E65951592EA8F8D500D4A891 /* LogTapFramework in Frameworks */ = {isa = PBXBuildFile; productRef = E65951582EA8F8D500D4A891 /* LogTapFramework */; };
 		EA823F45A123C5194D3AF9BE /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B334C03552BA75C9F7D55102 /* ContentView.swift */; };
 /* End PBXBuildFile section */
 
@@ -28,6 +29,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E65951592EA8F8D500D4A891 /* LogTapFramework in Frameworks */,
 				E631ED852E90973700A7563E /* LogTapFramework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -98,6 +100,7 @@
 			name = LogTapSample;
 			packageProductDependencies = (
 				E68BD8372E90927200630787 /* LogTapFramework */,
+				E65951582EA8F8D500D4A891 /* LogTapFramework */,
 			);
 			productName = LogTapSample;
 			productReference = 35EC999EEDD2D8EAC06DBAEA /* LogTapSample.app */;
@@ -123,7 +126,7 @@
 			mainGroup = BFB0D25FFCD67C465A08417E;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				E68BD8362E90927200630787 /* XCLocalSwiftPackageReference "../LogTapFramework" */,
+				E65951572EA8F8D500D4A891 /* XCLocalSwiftPackageReference "../../LogTapIOS" */,
 			);
 			projectDirPath = "";
 			projectRoot = "";
@@ -338,13 +341,17 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		E68BD8362E90927200630787 /* XCLocalSwiftPackageReference "../LogTapFramework" */ = {
+		E65951572EA8F8D500D4A891 /* XCLocalSwiftPackageReference "../../LogTapIOS" */ = {
 			isa = XCLocalSwiftPackageReference;
-			relativePath = ../LogTapFramework;
+			relativePath = ../../LogTapIOS;
 		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		E65951582EA8F8D500D4A891 /* LogTapFramework */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = LogTapFramework;
+		};
 		E68BD8372E90927200630787 /* LogTapFramework */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = LogTapFramework;
