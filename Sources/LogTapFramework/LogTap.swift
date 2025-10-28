@@ -164,23 +164,40 @@ public final class LogTap {
     
     public func urls() -> [String] {
         // best-effort LAN IPv4 list
-        var addrs: [String] = []
-        var ifaddrPtr: UnsafeMutablePointer<ifaddrs>?
-        if getifaddrs(&ifaddrPtr) == 0, let first = ifaddrPtr {
-            var ptr: UnsafeMutablePointer<ifaddrs>? = first
-            while ptr != nil {
-                let ifa = ptr!.pointee
-                if let sa = ifa.ifa_addr, sa.pointee.sa_family == UInt8(AF_INET) {
-                    var addr = [CChar](repeating: 0, count: Int(NI_MAXHOST))
-                    if getnameinfo(ifa.ifa_addr, socklen_t(ifa.ifa_addr.pointee.sa_len), &addr, socklen_t(addr.count), nil, 0, NI_NUMERICHOST) == 0 {
-                        let ip = String(cString: addr)
-                        if ip != "127.0.0.1" { addrs.append(ip) }
-                    }
-                }
-                ptr = ifa.ifa_next
-            }
-            freeifaddrs(first)
+        var addrs: [(iface: String, ip: String)] = []
+         var ifaddrPtr: UnsafeMutablePointer<ifaddrs>?
+         if getifaddrs(&ifaddrPtr) == 0, let first = ifaddrPtr {
+             var ptr: UnsafeMutablePointer<ifaddrs>? = first
+             while ptr != nil {
+                 let ifa = ptr!.pointee
+                 // Skip interfaces that are down or loopback
+                 let name = String(cString: ifa.ifa_name)
+                 let flags = Int32(ifa.ifa_flags)
+                 let isUp = (flags & IFF_UP) == IFF_UP
+                 let isLoopback = (flags & IFF_LOOPBACK) == IFF_LOOPBACK
+                 if !isUp || isLoopback {
+                     ptr = ifa.ifa_next
+                     continue
+                 }
+
+                 if let sa = ifa.ifa_addr, sa.pointee.sa_family == UInt8(AF_INET) {
+                     var addr = [CChar](repeating: 0, count: Int(NI_MAXHOST))
+                     if getnameinfo(ifa.ifa_addr, socklen_t(ifa.ifa_addr.pointee.sa_len), &addr, socklen_t(addr.count), nil, 0, NI_NUMERICHOST) == 0 {
+                         let ip = String(cString: addr)
+                         if ip != "127.0.0.1" {
+                             addrs.append((iface: name, ip: ip))
+                         }
+                     }
+                 }
+                 ptr = ifa.ifa_next
+             }
+             freeifaddrs(first)
+         }
+        // Prefer en0 (typical Wi‑Fi interface on iOS/macOS) if present
+        if let en0 = addrs.first(where: { $0.iface == "en0" }) {
+            return ["http://\(en0.ip):\(config.port)/"]
         }
-        return addrs.map { "http://\($0):\(config.port)/" }
-    }
-}
+        // Otherwise return all discovered addresses
+        return addrs.map { "http://\($0.ip):\(config.port)/" }
+     }
+ }

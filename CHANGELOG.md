@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+### 0.8.0 - 2025-10-28
+- Providing one URL for having access to LogTap server
+- Move code from print to os_log to be able to see the logs in Console app too.
+
 ### 0.7.0 - 2025-10-22
 - Fix issue to adding LogTapFramework via SPM
 - Fix issue showing logs in webpage
