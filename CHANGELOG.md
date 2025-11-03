@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+### 0.9.0 - 2025-11-03
+- Add timestamp option to LogTapLogger;
+- Format log messages with optional timestamps
+
 ### 0.8.0 - 2025-10-28
 - Providing one URL for accessing the LogTap server
 - Move code from print to os_log to be able to see the logs in the  Console app too.

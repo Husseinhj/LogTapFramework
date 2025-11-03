@@ -46,7 +46,18 @@ public final class LogTapLogger {
     public var debugMode: Bool = true
     public var allowReleaseLogging: Bool = false
     public var minLevel: LogLevel = .debug
-    
+    /// When true, the logger will prefix each formatted log message with a timestamp.
+    /// Default is false to preserve existing behavior. Enable with `LogTapLogger.shared.includeTimestamp = true`.
+    public var includeTimestamp: Bool = true
+
+    /// Reusable date formatter for timestamps (fast reuse, thread-safe since it's immutable after init).
+    private static let timestampFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyy-MM-dd HH:mm:ss.SSS"
+        return f
+    }()
+
     private func shouldLog(_ level: LogLevel) -> Bool {
         guard allowReleaseLogging || debugMode else { return false }
         func rank(_ l: LogLevel) -> Int {
@@ -83,7 +94,16 @@ public final class LogTapLogger {
         LogTap.shared.emit(ev)
         // Also forward to OSLog/print for convenience:
         // Use os_log so logs show up in the unified logging system (Console / log command).
-        let formatted = "[\(level.rawValue)] \(autoTag): \(msg)"
+        let base = "[\(level.rawValue)] \(autoTag): \(msg)"
+        let formatted: String
+        if includeTimestamp {
+            // Use the same timestamp as the emitted LogEvent (ev.ts is milliseconds since epoch)
+            let date = Date(timeIntervalSince1970: TimeInterval(ev.ts) / 1000.0)
+            let ts = LogTapLogger.timestampFormatter.string(from: date)
+            formatted = "[\(ts)] " + base
+        } else {
+            formatted = base
+        }
         // Use the auto-generated tag as the OSLog category (falls back to default osLog if tag empty)
         let categoryLog = autoTag.isEmpty ? osLog : osLog(forTag: autoTag)
         os_log("%{public}@", log: categoryLog, type: osLogType(for: level), formatted)
