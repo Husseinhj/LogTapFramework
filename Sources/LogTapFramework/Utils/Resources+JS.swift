@@ -593,30 +593,22 @@ enum ResourceJS {
              actions.appendChild(copyBtn);
            }
            const tdActions = document.createElement('td'); tdActions.className='col-actions'; tdActions.appendChild(actions);
-
-           tr.innerHTML =
-             `<td class="col-id">${ev.id ?? ''}</td>`+
-             `<td class="col-time">${fmtTime(ev.ts)}</td>`+
-             `<td class="col-kind kind-${kind}">${
-         kind === 'LOG'
-         ? escapeHtml(ev.level || levelOf(ev) || 'LOG')
-         : (kind === 'WEBSOCKET' ? ('WS' + wsIconHtml) : kind)
-     }</td>`+
-             `<td class="col-tag">${escapeHtml(tagTxt)}</td>`+
-             `<td class="col-method method-${mU}">${escapeHtml(ev.method || (kind === 'WEBSOCKET'?'WS':''))}</td>`+
-             `<td class="col-status ${classForStatus(ev.status)}">${ev.status ?? ''}</td>`+
-             (kind==='LOG'
-               ? (`<td class="col-url"><div class="url"><div class="lc">${logcatLine(ev)}</div></div></td>`)
-               : (`<td class="col-url">`
-                    + `<div class="url method-${mU} ${kind === 'WEBSOCKET' ? (isSend?'ws ws-send': (isRecv?'ws ws-recv':'ws')) : ''}">${
-         escapeHtml(
-             ev.url || ''
-         )
-     }</div>`
-                    + (ev.summary ? `<div class="muted">${escapeHtml(ev.summary)}</div>` : '')
-                  + `</td>`)
-             )
-           // pretty body preview under URL cell (only for HTTP and WEBSOCKET, not LOG)
+          // Create tds individually so we can set data-label attributes for mobile layout
+          const tdId = document.createElement('td'); tdId.className='col-id'; tdId.textContent = ev.id ?? '';
+          const tdTime = document.createElement('td'); tdTime.className='col-time'; tdTime.textContent = fmtTime(ev.ts);
+          const tdKind = document.createElement('td'); tdKind.className='col-kind kind-'+kind; tdKind.innerHTML = (kind === 'LOG') ? escapeHtml(ev.level || levelOf(ev) || 'LOG') : (kind === 'WEBSOCKET' ? ('WS' + wsIconHtml) : escapeHtml(kind));
+          const tdTag = document.createElement('td'); tdTag.className='col-tag'; tdTag.textContent = tagTxt;
+          const tdMethod = document.createElement('td'); tdMethod.className='col-method method-'+mU; tdMethod.textContent = escapeHtml(ev.method || (kind === 'WEBSOCKET'?'WS':''));
+          const tdStatus = document.createElement('td'); tdStatus.className='col-status '+classForStatus(ev.status); tdStatus.textContent = ev.status ?? '';
+          const tdUrl = document.createElement('td'); tdUrl.className='col-url';
+          if(kind==='LOG'){
+            const wrapper = document.createElement('div'); wrapper.className='url'; const msg = document.createElement('div'); msg.className='lc'; msg.textContent = logcatLine(ev); wrapper.appendChild(msg); tdUrl.appendChild(wrapper);
+          } else {
+            const urlDiv = document.createElement('div'); urlDiv.className = 'url method-'+mU + (kind === 'WEBSOCKET' ? (isSend?' ws ws-send': (isRecv?' ws ws-recv':'')) : ''); urlDiv.textContent = ev.url || '';
+            tdUrl.appendChild(urlDiv);
+            if(ev.summary){ const sum = document.createElement('div'); sum.className='muted'; sum.textContent = ev.summary; tdUrl.appendChild(sum); }
+          }
+          // pretty body preview under URL cell (only for HTTP and WEBSOCKET, not LOG)
            if (ev.bodyPreview && (kind === 'HTTP' || kind === 'WEBSOCKET')) {
              const pre = document.createElement('pre');
              pre.className = 'code mini body' + (jsonPretty?.checked ? ' json' : '');
@@ -626,8 +618,26 @@ enum ResourceJS {
              pre.innerHTML = jsonPretty?.checked ? hlJson(ev.bodyPreview) : escapeHtml(String(ev.bodyPreview));
              const urlCell = tr.querySelector('.col-url');
              if (urlCell) urlCell.appendChild(pre);
+             else tdUrl.appendChild(pre);
            }
-           tr.appendChild(tdActions);
+          // Set data-label attributes for mobile stacked layout
+          tdId.setAttribute('data-label','ID');
+          tdTime.setAttribute('data-label','Time');
+          tdKind.setAttribute('data-label','Kind');
+          tdTag.setAttribute('data-label','Tag');
+          tdMethod.setAttribute('data-label','Method');
+          tdStatus.setAttribute('data-label','Status');
+          tdUrl.setAttribute('data-label','URL / Summary');
+          tdActions.setAttribute('data-label','Actions');
+
+          tr.appendChild(tdId);
+          tr.appendChild(tdTime);
+          tr.appendChild(tdKind);
+          tr.appendChild(tdTag);
+          tr.appendChild(tdMethod);
+          tr.appendChild(tdStatus);
+          tr.appendChild(tdUrl);
+          tr.appendChild(tdActions);
            tr.addEventListener('click', ()=> openDrawer(ev));
            return tr;
          }

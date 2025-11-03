@@ -312,7 +312,6 @@ body.hide-col-actions #logtbl .col-actions{display:none}
   flex-wrap: wrap;
   padding: 10px 16px;
   background: var(--md-sys-color-surface); /* match header bg */
-  border-bottom: 1px solid var(--line);
 }
 .chip{background:var(--md-sys-color-surface-container-high);border:1px solid var(--line);padding:6px 12px;border-radius:999px;transition:background .15s,border-color .15s,color .15s,box-shadow .15s}
 
@@ -357,7 +356,7 @@ body.hide-col-actions #logtbl .col-actions{display:none}
 #wsStatus.status-connecting{background:rgba(245,158,11,.18);color:#d97706;border-color:#d9770633}
 
 /* ========================= Layout ========================= */
-.shell{display:flex;gap:12px;padding:12px;align-items:stretch}
+.shell{display:flex;gap:12px;padding-left:12px;padding-right:12px;align-items:stretch}
 .stats{ overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:thin; }
 .panel{flex:1 1 auto;border:1px solid var(--line);border-radius:16px;background:var(--md-sys-color-surface);box-shadow:var(--elev-1);overflow:auto;overflow-x:auto;max-height:calc(100vh - 180px)}
 .repo{
@@ -373,7 +372,6 @@ body.hide-col-actions #logtbl .col-actions{display:none}
   align-items:center;
   gap:4px;
   background:var(--md-sys-color-surface);
-  border-top:1px solid var(--line);
   box-shadow:var(--elev-1);
 }
 .repo a{color:inherit;text-decoration:none;border-bottom:1px dashed var(--line)}
@@ -1163,41 +1161,74 @@ body.ui{ font-size: var(--font-size); font-family: var(--font-ui); }
 }
 @media (max-width:768px){
   .tbl{ font-size:13px }
-  .hdr{padding:10px} .bar>*{flex:1 1 100%} .field{width:100%} .input,.select{width:100%} .stats{padding:8px 10px} .shell{padding:8px} .kv{grid-template-columns:1fr} .kv .full{grid-column:1 / -1} .cols{grid-template-columns:1fr} #ov-curl{max-height:50vh} #ov-summary{max-height:40vh}
+  /* Stack header on mobile: show .brand above .bar */
+  .hdr{ padding:10px; flex-direction:column; align-items:stretch; gap:10px }
+  .brand{ width:100%; display:flex; align-items:center; justify-content:flex-start; gap:12px }
+  .brand .titles{ display:flex; flex-direction:column; }
+
+  /* On narrow screens keep nav items compact: let the search field grow, but don't force every item to full width */
+  .bar{ align-items:center; width:100% }
+  .bar > .field { flex: 1 1 auto; min-width: 120px; }
+  .bar > *:not(.field){ flex: 0 0 auto; }
+  /* Make buttons rectangular (smaller radius) and slightly tighter padding for mobile */
+  .btn, .icon, .tab { border-radius:8px; }
+  .btn{ padding:8px 12px; }
+  .field{ width:auto }
+  .input,.select{width:100%}
+  .stats{padding:8px 10px}
+  .shell{padding:8px}
+  .kv{grid-template-columns:1fr}
+  .kv .full{grid-column:1 / -1}
+  .cols{grid-template-columns:1fr}
+  #ov-curl{max-height:50vh}
+  #ov-summary{max-height:40vh}
 }
 @media (max-width:600px){
-  .drawer{
-    position:fixed;
-    left:0; right:0;
-    top:96px; /* below header + stats */
-    bottom:0;
-    z-index:60;
-    width:auto; flex:0 0 auto;
-    opacity:0; pointer-events:none;
-    max-width:none;
-    border-radius:16px 16px 0 0;
-    height:auto;
+  /* hide the table header to free vertical space */
+  #logtbl thead{ display:none !important; }
+  /* make table elements behave like blocks */
+  #logtbl, #logtbl tbody, #logtbl tr, #logtbl td{ display:block; width:100%; }
+  /* card-like rows */
+  #logtbl tr{ margin:10px 0; padding:10px; border-radius:12px; border:1px solid var(--line); background:var(--md-sys-color-surface-container-high); box-shadow:var(--elev-1); }
+  /* align cell label + value side-by-side */
+  #logtbl td{ padding:8px 10px; display:flex; align-items:flex-start; justify-content:space-between; gap:8px; }
+  /* label before each cell (uses data-label populated by JS) */
+  #logtbl td::before{
+    content: attr(data-label);
+    flex: 0 0 110px;
+    color:var(--muted);
+    font-weight:600;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    margin-right:8px;
   }
-  body.drawer-open .drawer{ opacity:1; pointer-events:auto; }
-  .d-head{position:sticky;top:0;background:var(--md-sys-color-surface);z-index:5}
-  .tabs{position:sticky;top:48px;background:var(--md-sys-color-surface);z-index:4}
-  .panel{max-height:calc(100vh - 260px)}
-  .tbl thead th,.tbl tbody td{padding:9px}
-  .col-actions{display:none}
-  /* Compact table on phones */
-  #logtbl thead .col-tag, #logtbl tbody .col-tag{ display:none }
-  .tbl thead th, .tbl tbody td{ padding:8px }
-  .hdr{ flex-wrap:wrap }
-  .bar{ gap:6px }
-  .stats{ padding:6px 8px }
-  /* Popovers snap to left for small screens to avoid clipping */
-  .popover{ left:0; right:auto; }
-  .fp{ width: calc(100vw - 24px); max-width:none; }
-}
-@media (max-width:420px){
-  .titles{display:none} .chip{font-size:12px} .btn{padding:7px 10px} .icon{width:32px;height:32px}
-  #logtbl thead .col-time, #logtbl tbody .col-time{ display:none }
-  .tbl thead th, .tbl tbody td{ padding:7px }
+  /* Allow the URL / summary to wrap and take remaining width */
+  #logtbl td.col-url{ flex-direction:column; align-items:flex-start; }
+  #logtbl td.col-url::before{ flex:0 0 auto; margin-bottom:6px; }
+  #logtbl td .url, #logtbl td .muted, #logtbl td .lc{ max-width: calc(100% - 120px); overflow-wrap:anywhere; }
+  /* Actions should be visible and aligned right in a compact row */
+  #logtbl td.col-actions{ display:flex; gap:8px; justify-content:flex-end; }
+  /* Keep panel overflowing nicely on small screens */
+  .panel{ max-height:none; }
+  /* Make popovers/panels easier to interact with on phones */
+  .fp, .popover, #settingsPanel, #filtersPanel{ left:12px; right:12px; width:auto; }
+
+  /* Respect user column visibility toggles & view modes on mobile */
+  body.hide-col-id      #logtbl td.col-id,
+  body.hide-col-time    #logtbl td.col-time,
+  body.hide-col-kind    #logtbl td.col-kind,
+  body.hide-col-tag     #logtbl td.col-tag,
+  body.hide-col-method  #logtbl td.col-method,
+  body.hide-col-status  #logtbl td.col-status,
+  body.hide-col-url     #logtbl td.col-url,
+  body.hide-col-actions #logtbl td.col-actions { display: none !important; }
+
+  /* Respect mode toggles */
+  body.mode-network #logtbl td.col-tag { display: none !important; }
+  body.mode-log #logtbl td.col-method,
+  body.mode-log #logtbl td.col-status,
+  body.mode-log #logtbl td.col-actions { display: none !important; }
 }
 """#
 }
