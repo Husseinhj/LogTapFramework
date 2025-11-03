@@ -1,4 +1,3 @@
-// filepath: /Users/husseinhj/Documents/LogTapIOS/LogTapFramework/Sources/LogTapFramework/Utils/Resources+JS.swift
 // Auto-extracted JS resource from Resources.swift
 // Created to split large resource into a dedicated file for easier debugging.
 
