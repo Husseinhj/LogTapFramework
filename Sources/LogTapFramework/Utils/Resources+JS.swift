@@ -1198,9 +1198,28 @@ enum ResourceJS {
   }
   function refreshLiveAreas(){
     refreshSavedBadge();
+    // Capture pre-rebuild scroll position so the list does not flash to the top
+    // when .main is replaced. Pick whichever scroller is currently mounted.
+    var oldList = document.querySelector('#logcat-container') || document.querySelector('#tbl-wrap');
+    var savedTop = null;
+    var wasAtBottom = false;
+    if (oldList) {
+      savedTop = oldList.scrollTop;
+      wasAtBottom = (oldList.scrollHeight - savedTop - oldList.clientHeight) < 50;
+    }
     replaceSection('.metrics', buildMetrics);
     replaceSection('.main', buildMain);
     replaceSection('#status-bar', buildStatusBar);
+    // Anchor scroll synchronously to avoid the brief jump-to-top before the
+    // builder's setTimeout fires.
+    var newList = document.querySelector('#logcat-container') || document.querySelector('#tbl-wrap');
+    if (newList) {
+      if (state.autoScroll || wasAtBottom) {
+        newList.scrollTop = newList.scrollHeight;
+      } else if (savedTop != null) {
+        newList.scrollTop = savedTop;
+      }
+    }
     // App info banner — only update brand text/icon if it changed
     var bn = $('.brand-name');
     var bm = $('.brand-meta');

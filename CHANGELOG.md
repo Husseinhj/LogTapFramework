@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+### 0.10.1 - 2026-05-13
+
+- Fix auto-scroll flicker: the log list briefly jumped to the top every time a new event arrived. `refreshLiveAreas` now captures the active scroller's position before replacing `.main` and restores it (or pins to bottom when auto-scroll is on or the user was already at bottom) synchronously, so the browser never paints an intermediate `scrollTop = 0` state.
+
 ### 0.10.0 - 2026-05-13
 
 Modern viewer redesign + correctness fixes — ports Android LogTap v0.14.0.
