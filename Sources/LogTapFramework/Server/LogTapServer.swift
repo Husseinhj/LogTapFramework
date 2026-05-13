@@ -35,6 +35,17 @@ final class LogTapServer {
             upgradePipelineHandler: { [weak self] channel, _ in
                 guard let self else { return channel.eventLoop.makeSucceededFuture(()) }
                 self.wsClients.append(WeakChannel(channel))
+                // Send backlog from same store the live stream feeds from
+                let backlog = LogTap.shared.store.snapshot(sinceId: nil, limit: 200)
+                let enc = JSONEncoder()
+                for ev in backlog {
+                    if let data = try? enc.encode(ev) {
+                        var buf = channel.allocator.buffer(capacity: data.count)
+                        buf.writeBytes(data)
+                        let frame = WebSocketFrame(fin: true, opcode: .text, data: buf)
+                        channel.writeAndFlush(NIOAny(frame), promise: nil)
+                    }
+                }
                 channel.closeFuture.whenComplete { [weak self, weak channel] _ in
                     guard let self else { return }
                     self.wsClients.removeAll { $0.value == nil || $0.value === channel }

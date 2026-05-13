@@ -84,13 +84,22 @@ public final class LogTap {
                 return (.ok, h, bb, false)
                 
             case (.POST, "/api/clear"):
+                self.store.clear()
                 var bb = ByteBufferAllocator().buffer(capacity: 2)
                 bb.writeString("ok")
                 var h = HTTPHeaders()
                 h.add(name: "Content-Type", value: "text/plain; charset=utf-8")
                 h.add(name: "Content-Length", value: String(bb.readableBytes))
                 return (.ok, h, bb, false)
-                
+
+            case (.GET, "/about"):
+                var bb = ByteBufferAllocator().buffer(capacity: Resources.aboutHtml.utf8.count)
+                bb.writeString(Resources.aboutHtml)
+                var h = HTTPHeaders()
+                h.add(name: "Content-Type", value: "text/html; charset=utf-8")
+                h.add(name: "Content-Length", value: String(bb.readableBytes))
+                return (.ok, h, bb, false)
+
             case (.GET, "/ws"):
                 // upgrade handled by pipeline; nothing to write here
                 return (.switchingProtocols, .init(), nil, true)
@@ -143,7 +152,8 @@ public final class LogTap {
                 return str
             }
         }
-        return String(data: data.prefix(64_000), encoding: .utf8) ??
+        let max = LogTap.shared.config.maxBodyBytes
+        return String(data: data.prefix(max), encoding: .utf8) ??
         "(\(data.count) bytes binary)"
     }
     

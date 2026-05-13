@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import Darwin
 
 final class LogTapStore {
   private let capacity: Int
@@ -13,6 +14,7 @@ final class LogTapStore {
   private var nextId: Int64 = 1
   private let q = DispatchQueue(label: "logtap.store", qos: .utility)
   private var subscribers: [UUID: (LogEvent) -> Void] = [:]
+  private let ownPid: Int = Int(getpid())
 
   init(capacity: Int) { self.capacity = max(100, capacity) }
 
@@ -20,6 +22,7 @@ final class LogTapStore {
     var e = ev
     e.id = nextId
     nextId += 1
+    if e.pid == nil { e.pid = ownPid }
     q.sync {
       if deque.count == capacity { deque.removeFirst() }
       deque.append(e)

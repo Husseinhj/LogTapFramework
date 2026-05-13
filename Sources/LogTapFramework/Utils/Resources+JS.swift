@@ -1,1129 +1,1246 @@
-// Auto-extracted JS resource from Resources.swift
-// Created to split large resource into a dedicated file for easier debugging.
+// Auto-extracted JS resource — ported from Android Resources.kt (v0.14.0+).
+// Keep in sync with the Android sibling.
 
 import Foundation
 
 enum ResourceJS {
   static let appJs: String = #"""
-         // ========================= LogTap Viewer (fixed runtime JS) =========================
-         // Changes:
-         // - Fixed cURL builder (no nested template literal confusions)
-         // - Removed fragile ${JSON.stringify(...)} nesting inside Kotlin
-         // - Stronger error logging so JS errors don't silently stop rendering
-         const colorScheme = document.querySelector('#colorScheme');
+(function(){
+  'use strict';
+  var $ = function(sel){ return document.querySelector(sel); };
+  var $$ = function(sel){ return Array.prototype.slice.call(document.querySelectorAll(sel)); };
+  var root = $('#root');
 
-         function applyScheme(s){
-           const scheme = (s||'').toLowerCase();
-           const valid = ['android','xcode','vscode','grafana'];
-           const pick = valid.includes(scheme) ? scheme : 'android';
-           document.documentElement.setAttribute('data-scheme', pick);
-           if(colorScheme) colorScheme.value = pick;
-           try{ localStorage.setItem('logtap:scheme', pick); }catch{}
-         }
-         function initScheme(){
-           let s = 'android';
-           try{ s = localStorage.getItem('logtap:scheme') || 'android'; }catch{}
-           applyScheme(s);
-         }
-         // ---- DOM ----
-         const tbody = document.querySelector('#logtbl tbody');
-         const search = document.querySelector('#search');
-         const autoScroll = document.querySelector('#autoScroll');
-         const clearBtn = document.querySelector('#clearBtn');
-         const methodFilter = document.querySelector('#methodFilter');
-         const viewMode = document.querySelector('#viewMode');
-         const bodyEl = document.body;
-         const statusFilter = document.querySelector('#statusFilter');
-         const statusCodeFilter = document.querySelector('#statusCodeFilter');
-         const wsStatus = document.querySelector('#wsStatus');
-         const levelFilter = document.querySelector('#levelFilter');
-         const exportJsonBtn = document.querySelector('#exportJson');
-         const exportHtmlBtn = document.querySelector('#exportHtml');
-         const filtersBtn = document.querySelector('#filtersBtn');
-         const filtersPanel = document.querySelector('#filtersPanel');
-         const exportBtn = document.querySelector('#exportBtn');
-         const exportMenu = document.querySelector('#exportMenu');
-         const themeToggle = document.querySelector('#themeToggle');
-         const jsonPretty = document.querySelector('#jsonPretty');
-         
-         const chipTotal = document.querySelector('#chipTotal');
-         const chipHttp  = document.querySelector('#chipHttp');
-         const chipWs    = document.querySelector('#chipWs');
-         const chipLog   = document.querySelector('#chipLog');
-         const chipGet   = document.querySelector('#chipGet');
-         const chipPost  = document.querySelector('#chipPost');
+  // ---------- STATE ----------
+  var state = {
+    logs: [],          // unified rows
+    httpPending: {},   // requestId -> row index for pairing response
+    nextLocalId: 1,
+    selectedId: null,
+    expandedIds: {},
+    theme: localStorage.getItem('logtap-theme') || 'android',
+    darkMode: JSON.parse(localStorage.getItem('logtap-dark-mode') || 'true'),
+    viewMode: localStorage.getItem('logtap-view-mode') || 'logcat',
+    density: localStorage.getItem('logtap-density') || 'comfortable',
+    searchQuery: '',
+    autoScroll: true,
+    connectionStatus: 'connecting',
+    appInfo: null,
+    filters: {
+      type: 'all', method: 'all', status: 'all', level: 'all',
+      excludePackages: [], excludeMessages: []
+    },
+    savedFilters: JSON.parse(localStorage.getItem('logtap-saved-filters') || '[]'),
+    showFilters: false,
+    showSavedFilters: false,
+    showSettings: false,
+    showSuggestions: false,
+    suggestions: [],
+    suggestSel: 0,
+    excludeInput: '',
+    excludeType: 'package',
+    columnWidths: (function(){
+      var def = [60,110,110,80,150,120,80,450,400];
+      try {
+        var saved = JSON.parse(localStorage.getItem('logtap-cols') || 'null');
+        if (Array.isArray(saved) && saved.length === def.length) return saved;
+      } catch(e){}
+      return def;
+    })(),
+    contextMenu: null
+  };
 
-         // Column toggles
-         const colId = document.querySelector('#colId');
-         const colTime = document.querySelector('#colTime');
-         const colKind = document.querySelector('#colKind');
-         const colTag = document.querySelector('#colTag');
-         const colMethod = document.querySelector('#colMethod');
-         const colStatus = document.querySelector('#colStatus');
-         const colUrl = document.querySelector('#colUrl');
-         const colActions = document.querySelector('#colActions');
-         
-         const drawer = document.querySelector('#drawer');
-         const drawerClose = document.querySelector('#drawerClose');
-         const tabs = Array.from(document.querySelectorAll('.tab'));
-         const drawerResizer = document.querySelector('#drawerResizer');
-         const DRAWER_MIN = 360, DRAWER_MAX = 1000;
-         // ---- Drawer width persistence & drag-resize ----
-         function loadDrawerWidth(){
-           try{
-             const v = Number(localStorage.getItem('logtap:drawerW')||'');
-             if(v && !Number.isNaN(v)) document.documentElement.style.setProperty('--drawer-w', v+'px');
-           }catch{}
-         }
-         function saveDrawerWidth(px){ try{ localStorage.setItem('logtap:drawerW', String(px)); }catch{} }
-         let dragStartX=0, dragStartW=0, dragging=false;
-         function startResize(e){ if(!drawer) return; dragging=true; document.body.classList.add('resizing'); const r=drawer.getBoundingClientRect(); dragStartW=r.width; dragStartX=e.clientX; window.addEventListener('mousemove', onResizeMove); window.addEventListener('mouseup', endResize); }
-         function onResizeMove(e){ if(!dragging) return; const dx = dragStartX - e.clientX; let nw = Math.round(dragStartW + dx); nw = Math.max(DRAWER_MIN, Math.min(DRAWER_MAX, nw)); document.documentElement.style.setProperty('--drawer-w', nw+'px'); }
-         function endResize(){ if(!dragging) return; dragging=false; document.body.classList.remove('resizing'); const cur = getComputedStyle(document.documentElement).getPropertyValue('--drawer-w').trim(); const px = Number(cur.replace('px',''))||0; if(px>0) saveDrawerWidth(px); window.removeEventListener('mousemove', onResizeMove); window.removeEventListener('mouseup', endResize); }
-         // wire tab clicks
-         tabs.forEach(b => b.addEventListener('click', (e) => {
-           e.preventDefault();
-           e.stopPropagation();
-           const name = b.dataset.tab;
-           if (!name) return;
-           activateTab(name);
-         }));
-         const curlCopyBtn = document.querySelector('#ov-curl-copy');
-         const summaryCopyBtn = document.querySelector('#ov-summary-copy');
-         
-         // ---- State ----
-         let rows = [];
-         // Seen ids for deduplication between initial snapshot, websocket pushes, and missed-fetches
-         let seenIds = new Set();
-         // Explicit filter state declarations (avoid implicit globals / strict mode issues)
-         let filterText = '';
-         let filtered = [];
+  function pidTid(log){
+    var pid = (log.pid != null) ? String(log.pid) : '';
+    var tid = (log.tid != null) ? String(log.tid) : (log.thread || '');
+    if (!pid && !tid) return '';
+    if (!pid) return tid;
+    if (!tid) return pid;
+    return pid + '-' + tid;
+  }
 
-         // ---- Theme ----
-         function applyTheme(t){
-           const theme = (t === 'light' || t === 'dark') ? t : 'dark';
-           document.documentElement.setAttribute('data-theme', theme);
-           if (themeToggle) { const next = (theme==='dark'?'light':'dark'); themeToggle.setAttribute('title', 'Switch to '+next+' mode'); themeToggle.setAttribute('aria-label', 'Switch to '+next+' mode'); }
-         }
-         function initTheme(){
-           let t = localStorage.getItem('logtap:theme');
-           if (!t) t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
-           applyTheme(t);
-         }
+  // ---------- THEME APPLY ----------
+  function applyTheme(){
+    root.className = 'theme-' + state.theme + (state.darkMode ? '' : ' light-mode');
+  }
 
-         // ---- Preferences ----
-         function initPrefs(){
-           try{
-             // Pretty JSON
-             const v = localStorage.getItem('logtap:jsonPretty');
-             if(jsonPretty){
-               if(v!==null){ jsonPretty.checked = (v === '1'); }
-               else { jsonPretty.checked = true; } // default enabled
-             }
-             // Auto-scroll
-             const av = localStorage.getItem('logtap:autoScroll');
-             if (autoScroll){
-               if(av!==null){ autoScroll.checked = (av === '1'); }
-               else { autoScroll.checked = true; } // default ON
-             }
-           }catch{}
-         }
-
-         // ---- Column visibility persistence ----
-         function loadCols(){
-           try{ return JSON.parse(localStorage.getItem('logtap:cols')||'{}') }catch{ return {} }
-         }
-         function saveCols(cfg){ try{ localStorage.setItem('logtap:cols', JSON.stringify(cfg||{})) }catch{}
-         }
-         function applyCols(cfg){
-           const m = Object.assign({
-             id:true,time:true,kind:true,tag:true,method:true,status:true,url:true,actions:false
-           }, cfg||{});
-           // set checkbox states
-           if(colId) colId.checked = !!m.id;
-           if(colTime) colTime.checked = !!m.time;
-           if(colKind) colKind.checked = !!m.kind;
-           if(colTag) colTag.checked = !!m.tag;
-           if(colMethod) colMethod.checked = !!m.method;
-           if(colStatus) colStatus.checked = !!m.status;
-           if(colUrl) colUrl.checked = !!m.url;
-           if(colActions) colActions.checked = !!m.actions;
-           // toggle body classes
-           bodyEl.classList.toggle('hide-col-id',      !m.id);
-           bodyEl.classList.toggle('hide-col-time',    !m.time);
-           bodyEl.classList.toggle('hide-col-kind',    !m.kind);
-           bodyEl.classList.toggle('hide-col-tag',     !m.tag);
-           bodyEl.classList.toggle('hide-col-method',  !m.method);
-           bodyEl.classList.toggle('hide-col-status',  !m.status);
-           bodyEl.classList.toggle('hide-col-url',     !m.url);
-           bodyEl.classList.toggle('hide-col-actions', !m.actions);
-         }
-         let colCfg = loadCols();
-         if(Object.keys(colCfg).length===0){
-           colCfg = {id:true,time:true,kind:true,tag:true,method:true,status:true,url:true,actions:false};
-         }
-
-         // ---- Utils ----
-         function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c])); }
-         function fmtTime(ts){
-           try{
-             const d = new Date(ts);
-             const hh = String(d.getHours()).padStart(2,'0');
-             const mm = String(d.getMinutes()).padStart(2,'0');
-             const ss = String(d.getSeconds()).padStart(2,'0');
-             const ms = String(d.getMilliseconds()).padStart(3,'0');
-             return `${hh}:${mm}:${ss}.${ms}`;
-           } catch { return String(ts ?? ''); }
-         }
-         function fmtDateTime(ts){
-           try{
-             const d = new Date(ts);
-             const yyyy = d.getFullYear();
-             const mon = String(d.getMonth()+1).padStart(2,'0');
-             const day = String(d.getDate()).padStart(2,'0');
-             const hh = String(d.getHours()).padStart(2,'0');
-             const mm = String(d.getMinutes()).padStart(2,'0');
-             const ss = String(d.getSeconds()).padStart(2,'0');
-             const ms = String(d.getMilliseconds()).padStart(3,'0');
-             return `${yyyy}-${mon}-${day} ${hh}:${mm}:${ss}.${ms}`;
-           } catch { return String(ts ?? ''); }
-         }
-         function classForStatus(code){ if(!code) return ''; const x=Math.floor(code/100); return x===2?'status-2xx':x===3?'status-3xx':x===4?'status-4xx':x===5?'status-5xx':''; }
-         function hlJson(raw){
-           try { const obj=typeof raw==='string'?JSON.parse(raw):raw; const json=JSON.stringify(obj,null,2);
-             return json.replace(/"(\w+)":|"(.*?)"|\b(true|false)\b|\b(-?\d+(?:\.\d+)?)\b|null/g,(m,k,s,b,n)=>{
-               if(k) return '<span class="k">"'+escapeHtml(k)+'"</span>:';
-               if(s!==undefined) return '<span class="s">"'+escapeHtml(s)+'"</span>';
-               if(b) return '<span class="b">'+b+'</span>';
-               if(n) return '<span class="n">'+n+'</span>';
-               return '<span class="null">null</span>'; });
-           } catch { return escapeHtml(String(raw ?? '')); }
-         }
-         function toFile(name, mime, text){ const blob=new Blob([text],{type:mime}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click(); URL.revokeObjectURL(a.href); }
-
-         // ---- Normalization helpers ----
-         function kindOf(ev){
-          const k = ev?.kind;
-          if (typeof k === 'string') return k.toUpperCase();
-          if (k && typeof k === 'object' && 'name' in k) return String(k.name).toUpperCase();
-          return String(k ?? '').toUpperCase();
+  // ---------- EVENT NORMALIZATION ----------
+  // Server LogEvent -> UI row
+  // Pair HTTP REQUEST + RESPONSE into single row keyed by url+method+thread within ~60s
+  function ingest(ev){
+    if (ev.kind === 'HTTP') {
+      if (ev.direction === 'REQUEST') {
+        var row = {
+          uid: 'http-' + ev.id,
+          serverId: ev.id,
+          ts: ev.ts,
+          type: 'http',
+          method: ev.method || 'GET',
+          url: ev.url || '',
+          status: null,
+          duration: null,
+          requestHeaders: ev.headers || null,
+          requestBody: ev.bodyPreview || null,
+          responseHeaders: null,
+          responseBody: null,
+          tag: 'HTTP',
+          level: 'INFO',
+          message: (ev.method || 'GET') + ' ' + (ev.url || ''),
+          thread: ev.thread,
+          summary: ev.summary,
+          completed: false
+        };
+        var key = (ev.method||'') + '|' + (ev.url||'') + '|' + ev.thread;
+        state.httpPending[key] = state.logs.length;
+        state.logs.push(row);
+      } else if (ev.direction === 'RESPONSE') {
+        var key = (ev.method||'') + '|' + (ev.url||'') + '|' + ev.thread;
+        var idx = state.httpPending[key];
+        var derivedLevel = (ev.status >= 500) ? 'ERROR' : (ev.status >= 400) ? 'WARN' : 'INFO';
+        if (idx !== undefined && state.logs[idx] && !state.logs[idx].completed) {
+          var r = state.logs[idx];
+          r.status = ev.status;
+          r.duration = ev.tookMs;
+          r.responseHeaders = ev.headers;
+          r.responseBody = ev.bodyPreview;
+          r.level = derivedLevel;
+          r.completed = true;
+          delete state.httpPending[key];
+        } else {
+          // Orphan response
+          state.logs.push({
+            uid: 'http-' + ev.id, serverId: ev.id, ts: ev.ts, type: 'http',
+            method: ev.method||'', url: ev.url||'', status: ev.status,
+            duration: ev.tookMs, responseHeaders: ev.headers, responseBody: ev.bodyPreview,
+            tag: 'HTTP', level: derivedLevel, message: ev.summary, thread: ev.thread, completed: true
+          });
         }
-        function dirOf(ev){
-          const d = ev?.direction;
-          if (typeof d === 'string') return d.toUpperCase();
-          if (d && typeof d === 'object' && 'name' in d) return String(d.name).toUpperCase();
-          return String(d ?? '').toUpperCase();
+      } else if (ev.direction === 'ERROR') {
+        state.logs.push({
+          uid: 'http-' + ev.id, serverId: ev.id, ts: ev.ts, type: 'http',
+          method: ev.method||'', url: ev.url||'', status: null, duration: null,
+          tag: 'HTTP', level: 'ERROR', message: ev.summary, thread: ev.thread, completed: true,
+          error: ev.reason
+        });
+      }
+    } else if (ev.kind === 'WEBSOCKET') {
+      state.logs.push({
+        uid: 'ws-' + ev.id, serverId: ev.id, ts: ev.ts, type: 'ws',
+        method: ev.method || 'WS', url: ev.url || '', status: ev.code,
+        direction: ev.direction, tag: 'WebSocket',
+        level: ev.direction === 'ERROR' ? 'ERROR' : 'INFO',
+        message: ev.summary, thread: ev.thread,
+        responseBody: ev.bodyPreview, completed: true
+      });
+    } else { // LOG
+      state.logs.push({
+        uid: 'log-' + ev.id, serverId: ev.id, ts: ev.ts, type: 'log',
+        level: (ev.level || 'INFO').toUpperCase(),
+        tag: ev.tag || 'Log',
+        message: ev.summary || '',
+        thread: ev.thread,
+        completed: true
+      });
+    }
+  }
+
+  // ---------- COMMAND PARSER ----------
+  function parseSearchCommands(query){
+    var cmds = { exclude: { tags: [], messages: [], methods: [], statuses: [] },
+                 include: { tags: [], messages: [], methods: [], statuses: [], levels: [] },
+                 plain: '' };
+    var parts = query.match(/(?:[^\s"]+|"[^"]*")+/g) || [];
+    var plainParts = [];
+    parts.forEach(function(p){
+      var clean = function(v){ return (v||'').replace(/"/g,''); };
+      if (p.indexOf('exclude:') === 0) {
+        var rest = p.substring(8);
+        var i = rest.indexOf(':');
+        if (i > 0) {
+          var t = rest.substring(0, i), v = clean(rest.substring(i+1));
+          if (t === 'tag' && v) cmds.exclude.tags.push(v);
+          else if (t === 'message' && v) cmds.exclude.messages.push(v);
+          else if (t === 'method' && v) cmds.exclude.methods.push(v.toUpperCase());
+          else if (t === 'status' && v) cmds.exclude.statuses.push(v);
         }
-        function levelOf(ev){
-           let l = (ev?.level || ev?.logLevel || ev?.priority || '').toString().toUpperCase();
-           if(!l && typeof ev?.summary === 'string'){
-             const m = ev.summary.match(/^\s*\[(VERBOSE|DEBUG|INFO|WARN|ERROR|ASSERT|LOG)\]/i);
-             if(m) l = m[1].toUpperCase();
-           }
-           return l;
-        }
+      } else if (p.indexOf('include:') === 0 || p.indexOf('level:') === 0 || p.indexOf('method:') === 0 || p.indexOf('status:') === 0) {
+        var ci = p.indexOf(':');
+        var pref = p.substring(0, ci), val = clean(p.substring(ci+1));
+        if (pref === 'level' && val) cmds.include.levels.push(val.toUpperCase());
+        else if ((pref === 'method' || pref === 'include') && val) cmds.include.methods.push(val.toUpperCase());
+        else if ((pref === 'status' || pref === 'include') && val) cmds.include.statuses.push(val);
+      } else {
+        plainParts.push(clean(p));
+      }
+    });
+    cmds.plain = plainParts.join(' ');
+    return cmds;
+  }
 
-        function logcatLine(ev){
-           // Return only the message content for table summary; strip duplicates like ts/level/tag/pid
-           let msg = (ev.summary!=null && ev.summary!=='') ? String(ev.summary) : (ev.message || '');
-           if (!msg) return '';
-           try{
-             // Strip leading timestamp like "MM-DD HH:mm:ss.SSS" or "YYYY-MM-DD HH:mm:ss.SSS"
-             msg = msg.replace(/^\s*(\d{2}|\d{4})-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?\s*/,'');
-             // Strip classic logcat prefix: "E/Tag(123): " or "D/Tag:" etc.
-             msg = msg.replace(/^\s*[VDIWEA]\s*\/\s*[^:()]+(?:\([^)]*\))?\s*:\s*/,'');
-             // If we know the level or tag, strip them if they appear at the start like "[INFO] Tag:"
-             const lvl = (levelOf(ev)||'').toUpperCase();
-             if(lvl) msg = msg.replace(new RegExp('^\\s*\\['+lvl+'\\]\\s*:?\\s*',''),'');
-             const tag = (ev.tag||'');
-             if(tag) msg = msg.replace(new RegExp('^\\s*'+tag.replace(/[.*+?^$}()|[\\]\\\\]/g,'\\$&')+'\\s*:?\\s*'),'');
-           }catch{}
-           return msg.trim();
-        }
-        function logMessage(ev){
-          // Prefer a cleaned log line. Fallback to message/body/summary if present.
-          const cleaned = logcatLine(ev);
-          if (cleaned && cleaned.trim() !== '') return cleaned;
-          const raw = ev && (ev.message || ev.bodyPreview || ev.summary);
-          return raw ? String(raw) : '';
-        }
+  // ---------- FILTER ----------
+  function ciContains(field, q){
+    if (field == null || q == null || q === '') return false;
+    return String(field).toLowerCase().indexOf(String(q).toLowerCase()) !== -1;
+  }
+  function fullText(log){
+    return (log.type === 'http')
+      ? [(log.method||''), (log.url||''), (log.status==null?'':String(log.status)), (log.message||''), (log.requestBody||''), (log.responseBody||''), (log.tag||''), (log.level||''), (log.error||'')].join(' ')
+      : [(log.tag||''), (log.level||''), (log.message||''), (log.url||''), (log.responseBody||''), (log.method||''), (log.direction||'')].join(' ');
+  }
+  function getFiltered(){
+    var cmds = parseSearchCommands(state.searchQuery);
+    var f = state.filters;
+    return state.logs.filter(function(log){
+      var lvl = (log.level||'').toUpperCase();
+      var meth = (log.method||'').toUpperCase();
+      var statStr = (log.status==null) ? '' : String(log.status);
 
-        function applyMode(){
-           const m = viewMode?.value || 'mix';
-           bodyEl.classList.remove('mode-mix','mode-network','mode-log');
-           bodyEl.classList.add('mode-'+m);
-        }
+      // ---- Panel filters ----
+      if (f.type !== 'all' && log.type !== f.type) return false;
+      if (f.method !== 'all' && (log.type !== 'http' || meth !== f.method.toUpperCase())) return false;
+      if (f.status !== 'all') {
+        if (log.type !== 'http' || log.status == null) return false;
+        if (f.status === '2xx' && (log.status < 200 || log.status >= 300)) return false;
+        if (f.status === '4xx' && (log.status < 400 || log.status >= 500)) return false;
+        if (f.status === '5xx' && log.status < 500) return false;
+      }
+      if (f.level !== 'all' && lvl !== f.level.toUpperCase()) return false;
 
-         // ---- Stat chip filtering (toggleable) ----
-         const allChips = [];
-         let activeChip = null; // currently selected chip element or null
-         function highlightChip(el){
-           allChips.forEach(c=>c?.classList.remove('active'));
-           if(el){ el.classList.add('active'); activeChip = el; } else { activeChip = null; }
-         }
-         function resetFilters(){
-           // Text & selects
-           if(search){ search.value=''; filterText=''; }
-           if(methodFilter) methodFilter.value='';
-           if(statusFilter) statusFilter.value='';
-           if(statusCodeFilter) statusCodeFilter.value='';
-           if(levelFilter) levelFilter.value='';
-           if(viewMode){ viewMode.value='mix'; applyMode(); }
-         }
-         // ==== Column Resize (persisted) ====
-         const COL_W_KEY = 'logtap:colW';
-         const rootStyle = document.documentElement.style;
-         const headerRow = document.querySelector('#logtbl thead tr');
+      // ---- Panel exclusions (substring, case-insensitive) ----
+      if (f.excludePackages.some(function(p){ return ciContains(log.tag, p); })) return false;
+      if (f.excludeMessages.some(function(m){ return ciContains(fullText(log), m); })) return false;
 
-         function loadColWidths(){
-           try{ return JSON.parse(localStorage.getItem(COL_W_KEY)||'{}'); }catch{ return {}; }
-         }
-         function saveColWidths(map){
-           try{ localStorage.setItem(COL_W_KEY, JSON.stringify(map||{})); }catch{}
-         }
-         function applyColWidths(map){
-           if(!map) return;
-           for(const [k,v] of Object.entries(map)){
-             if(typeof v === 'number' || (typeof v === 'string' && v.endsWith('px'))){
-               const px = typeof v === 'number' ? v+"px" : v;
-               rootStyle.setProperty(`--col-${k}-w`, px);
-             }
-           }
-         }
-
-         let colWMap = loadColWidths();
-         applyColWidths(colWMap);
-
-         function installColumnResizers(){
-           if(!headerRow) return;
-           const ths = Array.from(headerRow.querySelectorAll('th'));
-           ths.forEach(th => {
-             const cls = Array.from(th.classList).find(c => c.startsWith('col-'));
-             if(!cls) return; // skip if no recognizable column key
-             const key = cls.replace('col-','');
-             // ensure handle exists once
-             if(th.querySelector('.th-resizer')) return;
-             th.style.position = 'sticky'; // keep sticky; our handle is absolutely placed inside
-             const handle = document.createElement('div');
-             handle.className = 'th-resizer';
-             // Accessibility and hint attributes
-             handle.title = 'Drag to resize column';
-             handle.setAttribute('role','separator');
-             handle.setAttribute('aria-orientation','vertical');
-             handle.tabIndex = 0; // allow keyboard focus
-             th.appendChild(handle);
-
-             let startX=0, startW=0, dragging=false;
-             function onMove(e){
-               if(!dragging) return;
-               const dx = (e.clientX || (e.touches && e.touches[0]?.clientX) || 0) - startX;
-               let w = Math.max(60, Math.min(600, startW + dx));
-               rootStyle.setProperty(`--col-${key}-w`, w+'px');
-             }
-             function onUp(){
-               if(!dragging) return;
-               dragging=false;
-               document.body.classList.remove('th-resizing');
-               const cur = getComputedStyle(document.documentElement).getPropertyValue(`--col-${key}-w`).trim();
-               if(cur){
-                 const num = Number(cur.replace('px','')) || 0;
-                 if(num>0){ colWMap[key] = num; saveColWidths(colWMap); }
-               }
-               window.removeEventListener('mousemove', onMove);
-               window.removeEventListener('mouseup', onUp);
-               window.removeEventListener('touchmove', onMove);
-               window.removeEventListener('touchend', onUp);
-             }
-             function onDown(e){
-               e.preventDefault(); e.stopPropagation();
-               const rect = th.getBoundingClientRect();
-               startX = (e.clientX || (e.touches && e.touches[0]?.clientX) || 0);
-               const cur = getComputedStyle(document.documentElement).getPropertyValue(`--col-${key}-w`).trim();
-               const fallback = rect.width;
-               startW = cur ? Number(cur.replace('px','')) || fallback : fallback;
-               dragging=true;
-               document.body.classList.add('th-resizing');
-               window.addEventListener('mousemove', onMove);
-               window.addEventListener('mouseup', onUp);
-               window.addEventListener('touchmove', onMove, {passive:false});
-               window.addEventListener('touchend', onUp);
-             }
-             handle.addEventListener('mousedown', onDown);
-             handle.addEventListener('touchstart', onDown, {passive:false});
-
-             // Keyboard support for nudging width
-             function nudge(delta){
-               const cur = getComputedStyle(document.documentElement).getPropertyValue(`--col-${key}-w`).trim();
-               const base = cur ? Number(cur.replace('px','')) : th.getBoundingClientRect().width;
-               const w = Math.max(60, Math.min(600, base + delta));
-               rootStyle.setProperty(`--col-${key}-w`, w+'px');
-               colWMap[key] = w; saveColWidths(colWMap);
-             }
-             handle.addEventListener('keydown', (e)=>{
-               if(e.key==='ArrowLeft'){ e.preventDefault(); nudge(-10); }
-               else if(e.key==='ArrowRight'){ e.preventDefault(); nudge(+10); }
-             });
-           });
-         }
-         
-         function resetColWidths(){
-           colWMap = {}; saveColWidths(colWMap);
-           // remove custom vars to fall back to defaults
-           ['id','time','kind','tag','method','status','url','actions'].forEach(k=>{
-             rootStyle.removeProperty(`--col-${k}-w`);
-           });
-         }
-         function applyStatFilter(kind, toggledOff){
-           if (toggledOff) {
-             // clear any visual/aria selection on chips
-             allChips.forEach(c=>{ c?.setAttribute('aria-pressed','false'); c?.classList.remove('active'); });
-             highlightChip(null); // also sets activeChip = null
-             // force view back to Mix and clear method/level/status filters
-             if(viewMode) viewMode.value = 'mix';
-             if(methodFilter) methodFilter.value = '';
-             if(levelFilter) levelFilter.value = '';
-             if(statusFilter) statusFilter.value = '';
-             if(statusCodeFilter) statusCodeFilter.value = '';
-             applyMode();
-             // user clicked the active chip again -> clear selection and reset filters
-             resetFilters();
-             renderAll();
-             return;
-           }
-           switch(kind){
-             case 'TOTAL':
-               resetFilters();
-               if(viewMode) viewMode.value='mix';
-               applyMode();
-               break;
-             case 'HTTP':
-               resetFilters();
-               if(viewMode) viewMode.value='network';
-               if(methodFilter) methodFilter.value='';
-               applyMode();
-               break;
-             case 'WS':
-               resetFilters();
-               if(viewMode) viewMode.value='network';
-               if(methodFilter) methodFilter.value='WS';
-               applyMode();
-               break;
-             case 'LOG':
-               resetFilters();
-               if(viewMode) viewMode.value='log';
-               applyMode();
-               break;
-             case 'GET':
-               resetFilters();
-               if(viewMode) viewMode.value='network';
-               if(methodFilter) methodFilter.value='GET';
-               applyMode();
-               break;
-             case 'POST':
-               resetFilters();
-               if(viewMode) viewMode.value='network';
-               if(methodFilter) methodFilter.value='POST';
-               applyMode();
-               break;
-           }
-           renderAll();
-         }
-
-         // ---- Status code filter helpers ----
-         function statusMatches(code, query){
-           if(!query) return true;
-           if(!code) return false;
-           const s = String(query).trim().replace(/\s+/g,'');
-           if(!s) return true;
-           const tokens = s.split(',').filter(Boolean);
-           const c = Number(code);
-           for(const t of tokens){
-             // class like 2xx / 4XX
-             if(/^[0-9][xX]{2}$/.test(t)){
-               const k = Number(t[0]);
-               if(Math.floor(c/100) === k) return true;
-               continue;
-             }
-             // exact 3-digit
-             if(/^\d{3}$/.test(t)){
-               if(c === Number(t)) return true;
-               continue;
-             }
-             // range 3xx-3xx or 000-999
-             const m = t.match(/^(\d{3})-(\d{3})$/);
-             if(m){
-               const a = Number(m[1]), b = Number(m[2]);
-               if(c >= Math.min(a,b) && c <= Math.max(a,b)) return true;
-               continue;
-             }
-           }
-           return false;
-         }
-         
-         // ---- Copy helper with fallback for non-secure contexts ----
-         async function copyText(text){
-           try{
-             if (navigator.clipboard && window.isSecureContext) {
-               await navigator.clipboard.writeText(text);
-               return true;
-             }
-           }catch(e){ /* fall back */ }
-           try{
-             const ta = document.createElement('textarea');
-             ta.value = text;
-             ta.style.position = 'fixed';
-             ta.style.top = '-9999px';
-             document.body.appendChild(ta);
-             ta.focus(); ta.select();
-             const ok = document.execCommand('copy');
-             document.body.removeChild(ta);
-             return ok;
-           }catch(e){ console.warn('copy fallback failed', e); return false; }
-         }
-         
-         // ---- Filters & Stats ----
-         function matchesFilters(ev){
-           if(filterText){ const hay = JSON.stringify(ev).toLowerCase(); if(!hay.includes(filterText)) return false; }
-           const kind = kindOf(ev);
-           const mode = viewMode?.value || 'mix';
-           if (mode === 'network' && !(kind === 'HTTP' || kind === 'WEBSOCKET')) return false;
-           if (mode === 'log' && kind !== 'LOG') return false;
-           const m = methodFilter?.value || '';
-           if(m){
-             if(m==='WS') { if(kind !== 'WEBSOCKET') return false; }
-             else { if(kind !== 'HTTP') return false; if((ev.method||'').toUpperCase() !== m) return false; }
-           }
-           const s = statusFilter?.value || '';
-           if(s && ev.status){ const x = Math.floor(ev.status/100)+'xx'; if(x!==s) return false; }
-           if (statusCodeFilter && statusCodeFilter.value && !statusMatches(ev.status, statusCodeFilter.value)) return false;
-           const lf = (levelFilter?.value || '').toUpperCase();
-           if(lf && kind==='LOG'){
-             const evLevel = levelOf(ev);
-             if(!evLevel || evLevel !== lf) return false;
-           }
-           return true;
-         }
-         function renderStats(){
-           const total = rows.length; const http = rows.filter(r=>kindOf(r)==='HTTP').length; const ws = rows.filter(r=>kindOf(r)==='WEBSOCKET').length; const log = rows.filter(r=>kindOf(r)==='LOG').length; const get = rows.filter(r=>(r.method||'').toUpperCase()==='GET').length; const post = rows.filter(r=>(r.method||'').toUpperCase()=='POST').length;
-           const set=(id,txt)=>{ const el=document.getElementById(id); if(el) el.textContent = txt; };
-           set('chipTotal','Total: '+total); set('chipHttp','HTTP: '+http); set('chipWs','WS: '+ws); set('chipLog','LOG: '+log); set('chipGet','GET: '+get); set('chipPost','POST: '+post);
-         }
-         
-         // ---- cURL builder (HTTP only) ----
-         function curlFor(ev){
-           try{
-             if(ev.kind!=='HTTP') return '';
-             const parts = ['curl', '-i', '-X', (ev.method||'GET')];
-             const url = ev.url || '';
-             const hdrs = ev.headers || {};
-             for(const [k,v] of Object.entries(hdrs)){
-               const vv = Array.isArray(v)? v.join(', '): String(v);
-               parts.push('-H', JSON.stringify(k+': '+vv));
-             }
-             if(ev.bodyPreview!=null && ev.bodyPreview!=='' && ev.method && ev.method.toUpperCase()!=='GET'){
-               parts.push('--data-binary', JSON.stringify(String(ev.bodyPreview)));
-             }
-             parts.push(JSON.stringify(url));
-             return parts.join(' ');
-           }catch(e){ console.warn('[LogTap] curlFor failed', e); return ''; }
-         }
-         
-         // ---- Table ----
-         function renderAll(){
-           try{
-             filtered = rows.filter(matchesFilters);
-             tbody.innerHTML='';
-             const fr = document.createDocumentFragment();
-             for(const ev of filtered) fr.appendChild(renderRow(ev));
-             tbody.appendChild(fr);
-             if(autoScroll?.checked) tbody.lastElementChild?.scrollIntoView({block:'end'});
-             renderStats();
-           }catch(err){ console.error('[LogTap] renderAll error', err); }
-         }
-         function btn(label, on){
-           const b=document.createElement('button');
-           b.className='xs ghost';
-           b.textContent=label;
-           b.addEventListener('click', async (e)=>{
-             e.preventDefault();
-             e.stopPropagation();
-             try { await on(b); } catch(err){ console.warn('button action failed', err); }
-           });
-           return b;
-         }
-         function renderRow(ev){
-           const tr = document.createElement('tr');
-           const kind = kindOf(ev); const dir = dirOf(ev);
-           // Add WS direction classes to row
-           const isSend = (dir === 'OUTBOUND' || dir === 'REQUEST');
-           const isRecv = (dir === 'INBOUND'  || dir === 'RESPONSE');
-           if (kind === 'WEBSOCKET'){
-             if (isSend) tr.classList.add('ws-send');
-             else if (isRecv) tr.classList.add('ws-recv');
-           }
-           // Build WS direction icon (send/receive)
-           let wsIconHtml = '';
-           const mU = (ev.method ? String(ev.method).toUpperCase() : (kind==='WEBSOCKET' ? 'WS' : ''));
-           if (kind === 'WEBSOCKET') {
-             wsIconHtml = isSend
-               ? '<span class="ws-ico ws-send" title="WebSocket send">⇧</span>'
-               : isRecv
-                 ? '<span class="ws-ico ws-recv" title="WebSocket receive">⇩</span>'
-                 : '<span class="ws-ico" title="WebSocket">∿</span>';
-           }
-           const lvl = (kind==='LOG') ? levelOf(ev) : '';
-           if(lvl) tr.classList.add('level-'+lvl);
-           const stCls = classForStatus(ev.status);
-           if (stCls) tr.classList.add(stCls);
-           const tagTxt = ev.tag ? String(ev.tag) : '';
-           tr.dataset.id = String(ev.id ?? '');
-           if (mU) tr.classList.add('method-'+mU);
-           const actions = document.createElement('div'); actions.className='action-row';
-           if(kind==='HTTP') {
-             const copyBtn = document.createElement('button');
-             copyBtn.className = 'icon';
-             copyBtn.title = 'Copy cURL';
-             copyBtn.innerHTML = '<span class="material-symbols-outlined" aria-hidden="true">content_copy</span>';
-             copyBtn.addEventListener('click', async (e)=>{
-               e.preventDefault(); e.stopPropagation();
-               const ok = await copyText(curlFor(ev));
-               if(ok){ copyBtn.classList.add('active'); setTimeout(()=> copyBtn.classList.remove('active'), 800); }
-             });
-             actions.appendChild(copyBtn);
-           }
-           const tdActions = document.createElement('td'); tdActions.className='col-actions'; tdActions.appendChild(actions);
-          // Create tds individually so we can set data-label attributes for mobile layout
-          const tdId = document.createElement('td'); tdId.className='col-id'; tdId.textContent = ev.id ?? '';
-          const tdTime = document.createElement('td'); tdTime.className='col-time'; tdTime.textContent = fmtTime(ev.ts);
-          const tdKind = document.createElement('td'); tdKind.className='col-kind kind-'+kind; tdKind.innerHTML = (kind === 'LOG') ? escapeHtml(ev.level || levelOf(ev) || 'LOG') : (kind === 'WEBSOCKET' ? ('WS' + wsIconHtml) : escapeHtml(kind));
-          const tdTag = document.createElement('td'); tdTag.className='col-tag'; tdTag.textContent = tagTxt;
-          const tdMethod = document.createElement('td'); tdMethod.className='col-method method-'+mU; tdMethod.textContent = escapeHtml(ev.method || (kind === 'WEBSOCKET'?'WS':''));
-          const tdStatus = document.createElement('td'); tdStatus.className='col-status '+classForStatus(ev.status); tdStatus.textContent = ev.status ?? '';
-          const tdUrl = document.createElement('td'); tdUrl.className='col-url';
-          if(kind==='LOG'){
-            const wrapper = document.createElement('div'); wrapper.className='url'; const msg = document.createElement('div'); msg.className='lc'; msg.textContent = logcatLine(ev); wrapper.appendChild(msg); tdUrl.appendChild(wrapper);
-          } else {
-            const urlDiv = document.createElement('div'); urlDiv.className = 'url method-'+mU + (kind === 'WEBSOCKET' ? (isSend?' ws ws-send': (isRecv?' ws ws-recv':'')) : ''); urlDiv.textContent = ev.url || '';
-            tdUrl.appendChild(urlDiv);
-            if(ev.summary){ const sum = document.createElement('div'); sum.className='muted'; sum.textContent = ev.summary; tdUrl.appendChild(sum); }
+      // ---- Command exclusions ----
+      // exclude:tag:X    → drop if log.tag contains X
+      if (cmds.exclude.tags.some(function(t){ return ciContains(log.tag, t); })) return false;
+      // exclude:message:X → drop if any visible field contains X
+      if (cmds.exclude.messages.some(function(m){ return ciContains(fullText(log), m); })) return false;
+      // exclude:method:X → drop only HTTP rows whose method matches
+      if (cmds.exclude.methods.length > 0 && log.type === 'http') {
+        if (cmds.exclude.methods.some(function(m){ return meth === m.toUpperCase(); })) return false;
+      }
+      // exclude:status:X → drop only HTTP rows whose status matches
+      if (cmds.exclude.statuses.length > 0 && log.type === 'http') {
+        if (cmds.exclude.statuses.some(function(s){
+          if (statStr === s) return true;
+          // Allow class shorthand: 4xx, 5xx
+          if (/^[1-5]xx$/i.test(s) && log.status != null) {
+            var cls = parseInt(s.charAt(0), 10);
+            return log.status >= cls*100 && log.status < (cls+1)*100;
           }
-          // pretty body preview under URL cell (only for HTTP and WEBSOCKET, not LOG)
-           if (ev.bodyPreview && (kind === 'HTTP' || kind === 'WEBSOCKET')) {
-             const pre = document.createElement('pre');
-             pre.className = 'code mini body' + (jsonPretty?.checked ? ' json' : '');
-             if (kind === 'WEBSOCKET'){
-               pre.classList.add(isSend ? 'ws-send' : (isRecv ? 'ws-recv' : ''));
-             }
-             pre.innerHTML = jsonPretty?.checked ? hlJson(ev.bodyPreview) : escapeHtml(String(ev.bodyPreview));
-             const urlCell = tr.querySelector('.col-url');
-             if (urlCell) urlCell.appendChild(pre);
-             else tdUrl.appendChild(pre);
-           }
-          // Set data-label attributes for mobile stacked layout
-          tdId.setAttribute('data-label','ID');
-          tdTime.setAttribute('data-label','Time');
-          tdKind.setAttribute('data-label','Kind');
-          tdTag.setAttribute('data-label','Tag');
-          tdMethod.setAttribute('data-label','Method');
-          tdStatus.setAttribute('data-label','Status');
-          tdUrl.setAttribute('data-label','URL / Summary');
-          tdActions.setAttribute('data-label','Actions');
+          return false;
+        })) return false;
+      }
 
-          tr.appendChild(tdId);
-          tr.appendChild(tdTime);
-          tr.appendChild(tdKind);
-          tr.appendChild(tdTag);
-          tr.appendChild(tdMethod);
-          tr.appendChild(tdStatus);
-          tr.appendChild(tdUrl);
-          tr.appendChild(tdActions);
-           tr.addEventListener('click', ()=> openDrawer(ev));
-           return tr;
-         }
-         // ---- Body helper ----
-         function bodyFor(ev, which){
-           // prefer full body fields if present
-           if(which==='request'){
-             return ev.requestBodyFull ?? ev.requestBody ?? ev.body ?? ev.bodyFull ?? ev.bodyPreview ?? '';
-           } else {
-             return ev.responseBodyFull ?? ev.responseBody ?? ev.body ?? ev.bodyFull ?? ev.bodyPreview ?? '';
-           }
-         }
-         
-         // ---- Drawer ----
-         function setText(id,v){ const el=document.getElementById(id); if(el) el.textContent = v==null?'':String(v); }
-         function setJson(id,raw){ const el=document.getElementById(id); if(!el) return; if(!raw){ el.textContent=''; return;} el.innerHTML = hlJson(raw); }
-         function headersToLines(map){
-           try{ return Object.entries(map||{}).map(([k,v])=> k+': '+(Array.isArray(v)?v.join(', '): String(v))).join('\n'); }catch{ return ''; }
-         }
-         function hlHeaders(text){
-           return String(text||'').split('\n').map(line=>{
-             const m = line.match(/^([^:]+):\s*(.*)$/);
-             if(m){
-               return '<span class="hk">'+escapeHtml(m[1])+'</span>: <span class="hv">'+escapeHtml(m[2])+'</span>';
-             }
-             return escapeHtml(line);
-           }).join('\n');
-         }
-         function setHeaders(id, map){
-           const el = document.getElementById(id); if(!el) return;
-           const txt = headersToLines(map);
-           el.innerHTML = hlHeaders(txt);
-         }
-         function activateTab(name){ tabs.forEach(b=>b.classList.toggle('active', b.dataset.tab===name)); document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('active', p.id==='tab-'+name)); }
-         function show(id, on){ const el=document.getElementById(id); if(!el) return; el.classList.toggle('hidden', !on); }
-         function setActiveTabIfHidden(){
-           // ensure the active tab button/pane are visible; if not, switch to overview
-           const active = document.querySelector('.tab.active');
-           if(active && active.classList.contains('hidden')) activateTab('overview');
-         }
-         function configureDrawerForKind(kind, ev){
-           const isLog = (kind === 'LOG');
-           // Toggle overview rows
-           show('row-method', !isLog);
-           show('row-status', !isLog);
-           show('row-url', !isLog);
-           show('row-took', !isLog);
-           show('row-curl', !isLog && ev && kind==='HTTP');
-           show('row-level', isLog);
-           show('row-tag', isLog);
-           // Tabs: hide request/response/headers for LOG
-           const showNetTabs = !isLog;
-           document.getElementById('tabBtn-request')?.classList.toggle('hidden', !showNetTabs);
-           document.getElementById('tabBtn-response')?.classList.toggle('hidden', !showNetTabs);
-           document.getElementById('tabBtn-headers')?.classList.toggle('hidden', !showNetTabs);
-           document.getElementById('tab-request')?.classList.toggle('hidden', !showNetTabs);
-           document.getElementById('tab-response')?.classList.toggle('hidden', !showNetTabs);
-           document.getElementById('tab-headers')?.classList.toggle('hidden', !showNetTabs);
-           if(!showNetTabs) activateTab('overview');
-         }
-         function openDrawer(ev){
-           if(!drawer) return;
-           currentEv = ev;
-           const kind = kindOf(ev); const dir = dirOf(ev);
-           bodyEl.classList.add('drawer-open');
-           let title = '';
-           if (kind === 'LOG') {
-             // For logger entries: show the tag (fallback to summary or 'LOG')
-             title = ev.tag || ev.summary || 'LOG';
-           } else {
-             // For interceptor entries (HTTP / WebSocket): show the URL only
-             title = ev.url || ev.summary || '';
-           }
-           const tEl = document.getElementById('drawerTitle'); tEl && tEl.replaceChildren(document.createTextNode(title));
-           let sub = `<span class="badge">id ${ev.id}</span> ` + (ev.status? `<span class="badge">status ${ev.status}</span> ` : '') + (ev.tookMs? `<span class="badge">${ev.tookMs} ms</span>` : '');
-           if (kind === 'WEBSOCKET') {
-             const d = dir;
-             const label = (d === 'OUTBOUND' || d === 'REQUEST') ? 'send' : (d === 'INBOUND' || d === 'RESPONSE') ? 'recv' : String(d||'').toLowerCase();
-             sub += ` <span class="badge">WS ${label}</span>`;
-           }
-           const sEl = document.getElementById('drawerSub'); if(sEl) sEl.innerHTML = sub;
-           setText('ov-id', ev.id); setText('ov-time', fmtDateTime(ev.ts));
-           // Set ov-kind: for LOG, use level or fallback; else kind.
-           if(kind==='LOG'){
-             setText('ov-kind', ev.level || levelOf(ev) || 'LOG');
-           } else {
-             setText('ov-kind', kind);
-           }
-           setText('ov-dir', dir);
-           setText('ov-method', ev.method || (kind==='WEBSOCKET'?'WS':'')); setText('ov-status', ev.status ?? ''); setText('ov-url', ev.url ?? '');
-           setText('ov-level', (ev.level || levelOf(ev) || ''));
-           setText('ov-tag', (ev.tag || ''));
-           // ---- Contextual summary block with classes ----
-           const mU = (ev.method ? String(ev.method).toUpperCase() : (kind==='WEBSOCKET' ? 'WS' : ''));
-           const lvl = (kind==='LOG') ? levelOf(ev) : '';
-           const sumEl = document.getElementById('ov-summary');
-           if (sumEl){
-             sumEl.classList.remove('json','method-GET','method-POST','method-PUT','method-PATCH','method-DELETE','method-WS','ws-send','ws-recv','ws-ping','ws-pong','ws-close','level-VERBOSE','level-DEBUG','level-INFO','level-WARN','level-ERROR','level-ASSERT');
-             // content
-             let content;
-             if (kind === 'LOG') {
-               content = logMessage(ev); // make sure logs show their message
-               sumEl.classList.remove('json');
-               sumEl.textContent = content || '';
-             } else {
-               content = ev.summary ?? '';
-               if (jsonPretty?.checked){
-                 sumEl.classList.add('json');
-                 sumEl.innerHTML = hlJson(content);
-               } else {
-                 sumEl.classList.remove('json');
-                 sumEl.textContent = content;
-               }
-             }
-             // method/WS tint
-             if (kind==='HTTP'){
-               if (mU) sumEl.classList.add('method-'+mU);
-             } else if (kind==='WEBSOCKET'){
-               const isSend = (dir === 'OUTBOUND' || dir === 'REQUEST');
-               const isRecv = (dir === 'INBOUND'  || dir === 'RESPONSE');
-               const op = (ev.op || ev.opcode || '').toString().toLowerCase();
-               const wsClass = op==='ping'?'ws-ping': op==='pong'?'ws-pong': op==='close'?'ws-close': (isSend?'ws-send': isRecv?'ws-recv':'');
-               if (wsClass) sumEl.classList.add(wsClass);
-               sumEl.classList.add('method-WS');
-             } else if (kind==='LOG'){
-               if (lvl) sumEl.classList.add('level-'+lvl);
-             }
-           }
-           setText('ov-took', ev.tookMs? ev.tookMs+' ms' : '');
-           // Show tag in thread field if present
-           if(ev.tag) setText('ov-thread', (ev.thread ?? '') + (ev.thread? ' • ' : '') + ev.tag);
-           else setText('ov-thread', ev.thread ?? '');
-           setJson('req-body', bodyFor(ev,'request'));
-           setJson('resp-body', bodyFor(ev,'response'));
-           // Colorize drawer content by method
-           const reqPre = document.getElementById('req-body');
-           const respPre = document.getElementById('resp-body');
-           [reqPre, respPre].forEach(p=>{ if(!p) return; p.classList.remove('method-GET','method-POST','method-PUT','method-PATCH','method-DELETE','method-WS'); if(mU) p.classList.add('method-'+mU); });
-           const reqH = document.getElementById('req-headers');
-           const respH = document.getElementById('resp-headers');
-           [reqH, respH].forEach(h=>{ if(!h) return; h.classList.add('headers'); h.classList.remove('method-GET','method-POST','method-PUT','method-PATCH','method-DELETE','method-WS'); if(mU) h.classList.add('method-'+mU); });
-           setHeaders('req-headers', ev.headers || {});
-           setHeaders('resp-headers', ev.responseHeaders || {});
-           // --- WebSocket direction & opcode classes for drawer code/headers ---
-           const isSend = (dir === 'OUTBOUND' || dir === 'REQUEST');
-           const isRecv = (dir === 'INBOUND'  || dir === 'RESPONSE');
-           const op = (ev.op || ev.opcode || '').toString().toLowerCase(); // 'text','binary','ping','pong','close'
-           const wsClass = (kind==='WEBSOCKET') ? (op==='ping'?'ws-ping': op==='pong'?'ws-pong': op==='close'?'ws-close': (isSend?'ws-send': isRecv?'ws-recv':'')) : '';
-           [reqPre, respPre].forEach(p=>{
-             if(!p) return;
-             p.classList.remove('ws-send','ws-recv','ws-ping','ws-pong','ws-close');
-             if(wsClass) p.classList.add(wsClass);
-           });
-           [reqH, respH].forEach(h=>{
-             if(!h) return;
-             h.classList.remove('ws-send','ws-recv','ws-ping','ws-pong','ws-close');
-             if(wsClass) h.classList.add(wsClass);
-           });
-           const oc = document.getElementById('ov-curl'); if(oc) oc.textContent = curlFor(ev);
-           if(curlCopyBtn){ curlCopyBtn.onclick = async (e)=>{ e.preventDefault(); e.stopPropagation(); const ocEl = document.getElementById('ov-curl'); const ok = await copyText(ocEl?.textContent || ''); if(ok){ const old = curlCopyBtn.textContent; curlCopyBtn.textContent = 'Copied!'; setTimeout(()=> curlCopyBtn.textContent = old, 1200); } }; }
-           const os = document.getElementById('ov-summary');
-           if(summaryCopyBtn){ summaryCopyBtn.onclick = async (e)=>{ e.preventDefault(); e.stopPropagation(); const osEl = document.getElementById('ov-summary'); const ok = await copyText(osEl?.textContent || ''); if(ok){ const old = summaryCopyBtn.textContent; summaryCopyBtn.textContent = 'Copied!'; setTimeout(()=> summaryCopyBtn.textContent = old, 1200); } }; }
-           configureDrawerForKind(kind, ev);
-           activateTab('overview');
-         }
-         
-         // ---- Exports ----
-         function currentFiltered(){ return rows.filter(matchesFilters); }
-         exportJsonBtn?.addEventListener('click', ()=>{
-           try{ const data = JSON.stringify(currentFiltered(), null, 2); const name = 'logtap-'+new Date().toISOString().replace(/[:.]/g,'-')+'.json'; toFile(name, 'application/json', data);}catch(e){ console.error('export json failed', e); }
-         });
-         exportHtmlBtn?.addEventListener('click', ()=>{
-           try{ const data = currentFiltered(); const pre = escapeHtml(JSON.stringify(data, null, 2));
-             const html = `<!doctype html><html><head><meta charset=\"utf-8\"><title>LogTap Report</title><style>body{font-family:ui-monospace,Menlo,monospace;background:#0b0d10;color:#e6edf3}pre{white-space:pre-wrap}</style></head><body><h1>LogTap Report</h1><p>Generated ${new Date().toLocaleString()}</p><h2>Filtered events (${data.length})</h2><pre>${pre}</pre></body></html>`;
-             const name = 'logtap-report-'+new Date().toISOString().replace(/[:.]/g,'-')+'.html'; toFile(name, 'text/html', html);
-           }catch(e){ console.error('export html failed', e); }
-         });
-         
-         // ---- Events ----
-         function onColChange(){
-           colCfg = {
-             id: !!(colId?.checked), time: !!(colTime?.checked), kind: !!(colKind?.checked), tag: !!(colTag?.checked),
-             method: !!(colMethod?.checked), status: !!(colStatus?.checked), url: !!(colUrl?.checked), actions: !!(colActions?.checked)
-           };
-           saveCols(colCfg); applyCols(colCfg);
-         }
-         [colId,colTime,colKind,colTag,colMethod,colStatus,colUrl,colActions].forEach(el=> el?.addEventListener('change', onColChange));
-         // Apply saved column visibility on startup
-         applyCols(colCfg);
-         search?.addEventListener('input', ()=>{ filterText = search.value.trim().toLowerCase(); renderAll(); });
-         // Make stat chips clickable (toggle selection on re-click)
-         allChips.push(chipTotal, chipHttp, chipWs, chipLog, chipGet, chipPost);
-         // Set default selection to "Total" chip on boot
-         highlightChip(chipTotal);
-         chipTotal.setAttribute('aria-pressed','true');
-         chipTotal.classList.add('active');
-         allChips.forEach(c=>{
-           if(!c) return;
-           c.classList.add('clickable');
-           c.setAttribute('role','button');
-           c.setAttribute('tabindex','0');
-           // Set all chips aria-pressed to false except chipTotal
-           if (c !== chipTotal) c.setAttribute('aria-pressed','false');
-           c.addEventListener('click', ()=>{
-             const isSame = (activeChip === c);
-             // update aria and visual state
-             if(isSame){
-               c.setAttribute('aria-pressed','false');
-               highlightChip(null);
-             } else {
-               allChips.forEach(ch=>{ ch?.setAttribute('aria-pressed','false'); ch?.classList.remove('active'); });
-               c.setAttribute('aria-pressed','true');
-               c.classList.add('active');
-               activeChip = c;
-             }
-             const kind = (c===chipTotal)?'TOTAL':(c===chipHttp)?'HTTP':(c===chipWs)?'WS':(c===chipLog)?'LOG':(c===chipGet)?'GET':'POST';
-             applyStatFilter(kind, isSame);
-           });
-           c.addEventListener('keydown', (e)=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); c.click(); } });
-         });
-         methodFilter?.addEventListener('change', renderAll);
-         viewMode?.addEventListener('change', ()=>{ applyMode(); renderAll(); });
-         statusFilter?.addEventListener('change', renderAll);
-         statusCodeFilter?.addEventListener('input', renderAll);
-         levelFilter?.addEventListener('change', renderAll);
-         jsonPretty?.addEventListener('change', ()=>{
-           try{ localStorage.setItem('logtap:jsonPretty', jsonPretty.checked ? '1' : '0'); }catch{}
-           renderAll();
-           if (currentEv) openDrawer(currentEv);
-         });
-         autoScroll?.addEventListener('change', ()=>{
-           try{ localStorage.setItem('logtap:autoScroll', autoScroll.checked ? '1' : '0'); }catch{}
-         });
-         colorScheme?.addEventListener('change', ()=> applyScheme(colorScheme.value));
-         clearBtn?.addEventListener('click', async ()=>{ try{ await fetch('/api/clear', {method:'POST'}); }catch{} rows=[]; renderAll(); });
-         drawerClose?.addEventListener('click', ()=> bodyEl.classList.remove('drawer-open'));
-         // Filters & Export popovers (don't close when clicking inside)
-         function isInside(el, target){ return !!(el && target && el instanceof Node && el.contains(target)); }
-         function closePopovers(e){
-           if (e) {
-             const t = e.target;
-             // If click is inside either popover or on their trigger buttons, don't close
-             if (isInside(filtersPanel, t) || isInside(exportMenu, t) || isInside(filtersBtn, t) || isInside(exportBtn, t)) return;
-           }
-           filtersPanel?.classList.add('hidden');
-           exportMenu?.classList.add('hidden');
-         }
-         filtersBtn?.addEventListener('click', (e)=>{
-           e.preventDefault(); e.stopPropagation();
-           const wasOpen = !filtersPanel?.classList.contains('hidden');
-           closePopovers();
-           if(!wasOpen) filtersPanel?.classList.remove('hidden');
-         });
-         exportBtn?.addEventListener('click', (e)=>{
-           e.preventDefault(); e.stopPropagation();
-           const wasOpen = !exportMenu?.classList.contains('hidden');
-           closePopovers();
-           if(!wasOpen) exportMenu?.classList.remove('hidden');
-         });
-         // Filters actions (Reset / Apply)
-         const filtersReset = document.querySelector('#filtersReset');
-         const filtersClose = document.querySelector('#filtersClose');
-         filtersReset?.addEventListener('click', (e)=>{ e.preventDefault(); e.stopPropagation(); resetFilters(); renderAll(); });
-         filtersClose?.addEventListener('click', (e)=>{ e.preventDefault(); e.stopPropagation(); filtersPanel?.classList.add('hidden'); });
-
-         // Prevent clicks inside popovers from bubbling to document
-         filtersPanel?.addEventListener('click', (e)=> e.stopPropagation());
-         exportMenu?.addEventListener('click', (e)=> e.stopPropagation());
-         document.addEventListener('click', (e)=> closePopovers(e));
-         document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closePopovers(); });
-         themeToggle?.addEventListener('click', ()=>{ const cur = document.documentElement.getAttribute('data-theme') || 'dark'; const next = cur==='dark'?'light':'dark'; applyTheme(next); localStorage.setItem('logtap:theme', next); });
-         
-         // ---- Bootstrap + WS status ----
-         async function loadDeviceInfo(){
-           try{
-             const res = await fetch('/api/info');
-             if(!res.ok) return;
-             const info = await res.json();
-             const appNameEl = document.getElementById('appName');
-             const appMetaEl = document.getElementById('appMeta');
-             const appIconEl = document.getElementById('appIcon');
-         
-             if(appNameEl) appNameEl.textContent = info.appName || 'Unknown App';
-         
-             if(appMetaEl){
-               const ver = [info.versionName ? 'v'+info.versionName : null,
-                            (info.versionCode!=null) ? '('+info.versionCode+')' : null]
-                           .filter(Boolean).join(' ');
-               const device = [info.deviceManufacturer, info.deviceModel].filter(Boolean).join(' ');
-               const os = [info.osType, info.osVersion, info.apiLevel!=null?('API '+info.apiLevel):null]
-                          .filter(Boolean).join(' ');
-               // Compose meta: bundle • version • device • os
-               appMetaEl.textContent = [info.appBundle, ver, device, os].filter(Boolean).join(' • ');
-             }
-             if(appIconEl && info.appIconBase64){
-               appIconEl.style.backgroundImage = 'url(data:image/png;base64,'+info.appIconBase64+')';
-             }
-           }catch(e){
-             console.warn('[LogTap] Device info load failed', e);
-           }
-         }
-
-         async function bootstrap(){
-           initTheme();
-           initPrefs();
-           initScheme();
-           // Load DeviceAppInfo into header
-           loadDeviceInfo();
-           try{ const res = await fetch('/api/logs?limit=1000'); if(!res.ok) throw new Error('HTTP '+res.status); rows = await res.json(); }
-           catch(err){ console.error('[LogTap] failed to fetch /api/logs', err); rows=[]; }
-           // Populate seenIds from the initial snapshot so websocket messages don't duplicate entries
-           try{ if(Array.isArray(rows)) rows.forEach(r => { if(r && r.id != null) seenIds.add(Number(r.id)); }); }catch(e){}
-           applyMode();
-           renderAll();
-           // Fallback: if rows exist but nothing is visible, clear filters & re-render
-           function ensureVisibleAfterBootstrap(){
-             try{
-               if(rows.length && (!tbody.firstElementChild || filtered.length===0)){
-                 console.warn('[LogTap] fallback: resetting filters to show initial logs');
-                 // Reset UI filter controls
-                 if(search){ search.value=''; filterText=''; }
-                 if(methodFilter) methodFilter.value='';
-                 if(statusFilter) statusFilter.value='';
-                 if(statusCodeFilter) statusCodeFilter.value='';
-                 if(levelFilter) levelFilter.value='';
-                 if(viewMode) viewMode.value='mix';
-                 applyMode();
-                 renderAll();
-               }
-             }catch(e){ console.warn('ensureVisibleAfterBootstrap failed', e); }
-           }
-           // Immediate check and delayed re-check (in case of async CSS/layout or late script errors)
-           ensureVisibleAfterBootstrap();
-           setTimeout(ensureVisibleAfterBootstrap, 300);
-           setTimeout(ensureVisibleAfterBootstrap, 1200);
-           try{
-             const setWs = (text, cls)=>{ if(wsStatus){ wsStatus.textContent = text; wsStatus.classList.remove('status-on','status-off','status-connecting'); if(cls) wsStatus.classList.add(cls); } };
-             setWs('● Connecting…', 'status-connecting');
-             const ws = new WebSocket((location.protocol==='https:'?'wss':'ws')+'://'+location.host+'/ws');
-             const on = ()=> setWs('● Connected', 'status-on');
-             const off = ()=> setWs('● Disconnected', 'status-off');
-             ws.addEventListener('open', on);
-             ws.addEventListener('close', off);
-             ws.addEventListener('error', off);
-             ws.onmessage = (e)=>{ try{ const ev = JSON.parse(e.data); const id = ev && ev.id!=null ? Number(ev.id) : null; if(id!=null && seenIds.has(id)){ return; } if(id!=null) seenIds.add(id); rows.push(ev); if(matchesFilters(ev)){ tbody.appendChild(renderRow(ev)); if(autoScroll?.checked) tbody.lastElementChild?.scrollIntoView({block:'end'}); renderStats(); } }catch(parseErr){ console.warn('[LogTap] bad WS payload', parseErr); } };
-           }catch(wsErr){ console.warn('[LogTap] WS setup failed', wsErr); if(wsStatus){ wsStatus.textContent='● Disconnected'; wsStatus.classList.remove('status-on','status-connecting'); wsStatus.classList.add('status-off'); } }
-         }
-         // === Settings popover wiring ===
-         const settingsBtn   = document.getElementById('settingsBtn');
-         const settingsPanel = document.getElementById('settingsPanel');
-         const settingsClose = document.getElementById('settingsClose');
-         const settingsReset = document.getElementById('settingsReset');
-
-         function toggleSettings(open) {
-           if (!settingsPanel || !settingsBtn) return;
-           const willOpen = open ?? settingsPanel.classList.contains('hidden');
-           if (willOpen) {
-             // Position the panel just under the button, keeping it in-viewport
-             const br = settingsBtn.getBoundingClientRect();
-             const vw = window.innerWidth, vh = window.innerHeight;
-             const panelW = Math.min(520, vw - 24);
-             let left = Math.max(12, Math.min(br.left, vw - panelW - 12));
-             let top  = Math.min(br.bottom + 8, vh - 100); // leave a little room at bottom
-             settingsPanel.style.left = left + 'px';
-             settingsPanel.style.right = 'auto';
-             settingsPanel.style.top = top + 'px';
-           }
-           settingsPanel.classList.toggle('hidden', !willOpen);
-           settingsBtn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
-         }
-
-         settingsBtn?.addEventListener('click', (e) => {
-           e.stopPropagation();
-           toggleSettings();
-         });
-
-         settingsClose?.addEventListener('click', () => toggleSettings(false));
-         // Optional hook for your reset logic:
-         settingsReset?.addEventListener('click', () => {
-            // Pretty JSON defaults to ON
-           if(jsonPretty){
-             jsonPretty.checked = true;
-             try{ localStorage.setItem('logtap:jsonPretty','1'); }catch{}
-           }
-           if (autoScroll){
-             autoScroll.checked = true;
-             try{ localStorage.setItem('logtap:autoScroll','1'); }catch{}
-           }
-
-           // Columns: show all
-           const allTrue = {id:true,time:true,kind:true,tag:true,method:true,status:true,url:true,actions:false};
-           try{ localStorage.setItem('logtap:cols', JSON.stringify(allTrue)); }catch{}
-           applyCols(allTrue);
-
-           // Clear active stat chip highlight
-           highlightChip(null);
-           // Reset column widths to defaults
-           resetColWidths();
-         });
-         
-         // Close when clicking outside
-         window.addEventListener('click', (e) => {
-           if (!settingsPanel || settingsPanel.classList.contains('hidden')) return;
-           if (!settingsPanel.contains(e.target) && e.target !== settingsBtn && !settingsBtn.contains(e.target)) {
-             toggleSettings(false);
-           }
-         });
-         
-         // Close on Escape
-         window.addEventListener('keydown', (e) => {
-           if (e.key === 'Escape') toggleSettings(false);
-         });
-
-         // Make the Columns section a grid without touching HTML
-         (function(){
-           try{
-             const secs = document.querySelectorAll('#settingsPanel .sp-section');
-             secs.forEach(sec => {
-               const h = sec.querySelector('h4');
-               if (h && /columns/i.test(h.textContent || '')) {
-                 sec.classList.add('cols-grid');
-               }
-             });
-           }catch(e){ console.warn('Columns grid setup failed', e); }
-         })();
-                              
-     // --- WebSocket with auto-reconnect ---
-          const setWs = (text, cls)=> { if(wsStatus){ wsStatus.textContent = text; wsStatus.classList.remove('status-on','status-off','status-connecting'); if(cls) wsStatus.classList.add(cls); } };
-          let ws = null;
-          let wsReconnectAttempts = 0;
-          function fetchMissed(){
-            try {
-              const lastId = rows.length ? rows[rows.length - 1].id : 0;
-              if(!lastId) return; // nothing yet
-              fetch('/api/logs?sinceId='+lastId+'&limit=2000').then(r=> r.ok ? r.json() : []).then(arr => {
-                if(Array.isArray(arr) && arr.length){
-                  for(const ev of arr){ const id = ev && ev.id!=null ? Number(ev.id) : null; if(id!=null && seenIds.has(id)) continue; if(id!=null) seenIds.add(id); rows.push(ev); if(matchesFilters(ev)){ tbody.appendChild(renderRow(ev)); } }
-                   if(autoScroll?.checked) tbody.lastElementChild?.scrollIntoView({block:'end'});
-                   renderStats();
-                 }
-               }).catch(()=>{});
-             } catch(e) { /* ignore */ }
-           }
-          function connectWs(){
-            setWs('● Connecting…','status-connecting');
-            const url = (location.protocol==='https:'?'wss':'ws')+'://'+location.host+'/ws';
-            try { if(ws){ try{ ws.close(); }catch{} } } catch {}
-            try {
-              ws = new WebSocket(url);
-            } catch(err){
-              console.warn('[LogTap] WS create failed', err);
-              scheduleReconnect();
-              return;
-            }
-            ws.addEventListener('open', () => {
-              setWs('● Connected','status-on');
-              const firstConnect = (wsReconnectAttempts === 0);
-              wsReconnectAttempts = 0; // reset attempts after success
-              if(!firstConnect){ fetchMissed(); }
-            });
-            
-            function scheduleReconnect(){
-              setWs('● Disconnected','status-off');
-              const attempt = wsReconnectAttempts++;
-              // Exponential-ish backoff: 0->1s,1->1.6s,2->2.5s,3->4s,... capped at 15s
-              const delay = Math.min(15000, Math.round(1000 * Math.pow(1.6, attempt)));
-              // Update status to show reconnection intent (optional)
-              if(wsStatus){ wsStatus.textContent = '● Reconnecting in '+Math.ceil(delay/1000)+'s…'; }
-              setTimeout(()=>{ connectWs(); }, delay);
-            }
-            ws.addEventListener('close', () => scheduleReconnect());
-            ws.addEventListener('error', () => scheduleReconnect());
-            ws.onmessage = (e)=>{
-              try{ const ev = JSON.parse(e.data); const id = ev && ev.id!=null ? Number(ev.id) : null; if(id!=null && seenIds.has(id)){ return; } if(id!=null) seenIds.add(id); rows.push(ev); if(matchesFilters(ev)){ tbody.appendChild(renderRow(ev)); if(autoScroll?.checked) tbody.lastElementChild?.scrollIntoView({block:'end'}); renderStats(); } }
-              catch(parseErr){ console.warn('[LogTap] bad WS payload', parseErr); }
-            };
+      // ---- Command inclusions (positive filters) ----
+      // level:X applies to ALL types (http rows have derived level too)
+      if (cmds.include.levels.length > 0) {
+        if (cmds.include.levels.indexOf(lvl) === -1) return false;
+      }
+      // method:X only matches HTTP rows
+      if (cmds.include.methods.length > 0) {
+        if (log.type !== 'http') return false;
+        if (cmds.include.methods.indexOf(meth) === -1) return false;
+      }
+      // status:X only matches HTTP rows; supports class shorthand 2xx/4xx/5xx
+      if (cmds.include.statuses.length > 0) {
+        if (log.type !== 'http' || log.status == null) return false;
+        var ok = cmds.include.statuses.some(function(s){
+          if (statStr === s) return true;
+          if (/^[1-5]xx$/i.test(s)) {
+            var cls = parseInt(s.charAt(0), 10);
+            return log.status >= cls*100 && log.status < (cls+1)*100;
           }
-          function scheduleReconnect(){ /* fallback ref for early failures */ setTimeout(()=> connectWs(), 1500); }
-          connectWs();
+          return false;
+        });
+        if (!ok) return false;
+      }
 
-         // Load saved drawer width and enable drag to resize
-         loadDrawerWidth();
-         drawerResizer?.addEventListener('mousedown', (e)=>{ e.preventDefault(); startResize(e); });
-         bootstrap();
-         document.addEventListener('DOMContentLoaded', () => {
-           try{ installColumnResizers(); }catch(e){ console.warn('column resizer init failed', e); }
-         });
-    """#
+      // ---- Plain text search across all visible fields ----
+      if (cmds.plain) {
+        if (!ciContains(fullText(log), cmds.plain)) return false;
+      }
+
+      return true;
+    });
+  }
+
+  // ---------- METRICS ----------
+  function computeMetrics(){
+    var total = state.logs.length;
+    var network = 0, logCount = 0, errors = 0, durSum = 0, durN = 0;
+    var oneMinAgo = Date.now() - 60000;
+    var perMin = 0;
+    state.logs.forEach(function(l){
+      if (l.type === 'http') {
+        network++;
+        if (l.status && l.status >= 400) errors++;
+        if (typeof l.duration === 'number') { durSum += l.duration; durN++; }
+      } else if (l.type === 'log') {
+        logCount++;
+        if (l.level === 'ERROR' || l.level === 'ASSERT') errors++;
+      }
+      if (l.ts >= oneMinAgo) perMin++;
+    });
+    return {
+      total: total, network: network, logs: logCount,
+      errors: errors, perMin: perMin,
+      avgResponseTime: durN > 0 ? Math.round(durSum / durN) : 0
+    };
+  }
+
+  // ---------- HELPERS ----------
+  function fmtTime(ts){
+    var d = new Date(ts);
+    var pad = function(n,w){ var s = String(n); while (s.length < w) s = '0' + s; return s; };
+    return pad(d.getHours(),2) + ':' + pad(d.getMinutes(),2) + ':' + pad(d.getSeconds(),2) + '.' + pad(d.getMilliseconds(),3);
+  }
+  function escHtml(s){
+    if (s == null) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function levelChar(l){
+    if (!l) return ' ';
+    return l.charAt(0);
+  }
+  function statusClass(s){
+    if (s == null) return '';
+    if (s >= 200 && s < 300) return 'status-2';
+    if (s >= 300 && s < 400) return 'status-3';
+    if (s >= 400 && s < 500) return 'status-4';
+    return 'status-5';
+  }
+  function copyText(t){
+    try { navigator.clipboard.writeText(t); } catch(e) {
+      var ta = document.createElement('textarea');
+      ta.value = t; document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); } catch(e2){}
+      document.body.removeChild(ta);
+    }
+  }
+  function asCurl(log){
+    if (log.type !== 'http') return '';
+    var s = "curl -X " + (log.method||'GET') + " '" + (log.url||'') + "'";
+    if (log.requestHeaders) {
+      Object.keys(log.requestHeaders).forEach(function(k){
+        var vals = log.requestHeaders[k] || [];
+        vals.forEach(function(v){ s += " -H '" + k + ": " + v + "'"; });
+      });
+    }
+    if (log.requestBody) s += " --data '" + log.requestBody.replace(/'/g, "'\\''") + "'";
+    return s;
+  }
+  function debounce(fn, ms){
+    var t; return function(){ var args = arguments; clearTimeout(t); t = setTimeout(function(){ fn.apply(null, args); }, ms); };
+  }
+
+  // ---------- SUGGESTIONS ----------
+  var ALL_SUGGESTIONS = [
+    { cmd: 'exclude:tag:', desc: 'Hide logs from a tag/package', example: 'exclude:tag:MainActivity' },
+    { cmd: 'exclude:message:', desc: 'Hide logs containing text', example: 'exclude:message:timeout' },
+    { cmd: 'exclude:method:', desc: 'Hide HTTP method', example: 'exclude:method:GET' },
+    { cmd: 'exclude:status:', desc: 'Hide HTTP status', example: 'exclude:status:404' },
+    { cmd: 'level:', desc: 'Show only this log level', example: 'level:ERROR' },
+    { cmd: 'method:', desc: 'Show only this HTTP method', example: 'method:POST' },
+    { cmd: 'status:', desc: 'Show only this status code', example: 'status:200' },
+    { cmd: 'level:ERROR', desc: 'Show only errors', example: '' },
+    { cmd: 'level:WARN', desc: 'Show only warnings', example: '' },
+    { cmd: 'level:INFO', desc: 'Show only info logs', example: '' },
+    { cmd: 'level:DEBUG', desc: 'Show only debug logs', example: '' },
+    { cmd: 'level:VERBOSE', desc: 'Show only verbose logs', example: '' },
+    { cmd: 'method:GET', desc: 'Show only GET requests', example: '' },
+    { cmd: 'method:POST', desc: 'Show only POST requests', example: '' },
+    { cmd: 'method:PUT', desc: 'Show only PUT requests', example: '' },
+    { cmd: 'method:DELETE', desc: 'Show only DELETE requests', example: '' },
+    { cmd: 'status:200', desc: 'Show only 200 OK', example: '' },
+    { cmd: 'status:404', desc: 'Show only 404', example: '' },
+    { cmd: 'status:500', desc: 'Show only 500', example: '' },
+    { cmd: 'status:2xx', desc: 'Show only 2xx success', example: '' },
+    { cmd: 'status:4xx', desc: 'Show only 4xx client errors', example: '' },
+    { cmd: 'status:5xx', desc: 'Show only 5xx server errors', example: '' }
+  ];
+  function updateSuggestions(){
+    var inp = $('#search-input');
+    if (!inp) return;
+    var pos = inp.selectionStart || inp.value.length;
+    var before = inp.value.substring(0, pos);
+    var lastWord = before.split(' ').pop();
+    if (!lastWord) { state.showSuggestions = false; state.suggestions = []; return; }
+    state.suggestions = ALL_SUGGESTIONS.filter(function(s){
+      return s.cmd.toLowerCase().indexOf(lastWord.toLowerCase()) === 0;
+    });
+    state.suggestSel = 0;
+    state.showSuggestions = state.suggestions.length > 0;
+  }
+  function applySuggestion(cmd){
+    var inp = $('#search-input');
+    if (!inp) return;
+    var pos = inp.selectionStart || inp.value.length;
+    var before = state.searchQuery.substring(0, pos);
+    var after = state.searchQuery.substring(pos);
+    var words = before.split(' ');
+    words[words.length - 1] = cmd;
+    var nv, np;
+    if (cmd.charAt(cmd.length-1) === ':') {
+      nv = words.join(' ') + after;
+      np = words.join(' ').length;
+    } else {
+      nv = words.join(' ') + ' ' + after;
+      np = words.join(' ').length + 1;
+    }
+    state.searchQuery = nv;
+    state.showSuggestions = false;
+    inp.value = nv;
+    inp.focus();
+    try { inp.setSelectionRange(np, np); } catch(e){}
+    updateSearchUI();
+  }
+
+  // Targeted DOM updates that DO NOT touch the search input element
+  // Used during typing/autocomplete so focus and cursor position are preserved.
+  function refreshSuggestPanel(){
+    var sw = $('.search-wrap');
+    if (!sw) return;
+    var old = sw.querySelector('.suggest');
+    if (old) old.remove();
+    if (state.showSuggestions && state.suggestions.length > 0) {
+      sw.appendChild(buildSuggestPanel());
+    }
+  }
+  function refreshStarBtn(){
+    var sw = $('.search-wrap');
+    if (!sw) return;
+    var oldStar = sw.querySelector('.star-btn');
+    if (oldStar) oldStar.remove();
+    if (state.searchQuery.trim()) {
+      var saved = isCurrentSaved();
+      var btn = h('button', {
+        class:'star-btn',
+        title: saved ? 'Remove from favorites' : 'Save to favorites',
+        onclick: function(e){ e.stopPropagation(); toggleSaveCurrent(); }
+      }, saved ? '★' : '☆');
+      // Insert before suggest panel (if any) so star stays inside input area
+      var sug = sw.querySelector('.suggest');
+      if (sug) sw.insertBefore(btn, sug); else sw.appendChild(btn);
+    }
+  }
+  function refreshSavedBadge(){
+    var savedBtn = $$('.icon-btn').filter(function(b){ return b.title === 'Saved Filters'; })[0];
+    if (!savedBtn) return;
+    var old = savedBtn.querySelector('.badge');
+    if (old) old.remove();
+    if (state.savedFilters.length > 0) {
+      savedBtn.appendChild(h('span', {class:'badge'}, String(state.savedFilters.length)));
+    }
+  }
+  function replaceSection(sel, builder){
+    var old = $(sel);
+    if (old && old.parentNode) old.parentNode.replaceChild(builder(), old);
+  }
+  function updateSearchUI(){
+    refreshSuggestPanel();
+    refreshStarBtn();
+    refreshSavedBadge();
+    replaceSection('.metrics', buildMetrics);
+    replaceSection('.main', buildMain);
+    replaceSection('#status-bar', buildStatusBar);
+  }
+
+  // ---------- SAVED FILTERS ----------
+  function isCurrentSaved(){
+    var q = state.searchQuery.trim();
+    return q && state.savedFilters.some(function(f){ return f.query === q; });
+  }
+  function toggleSaveCurrent(){
+    var q = state.searchQuery.trim();
+    if (!q) return;
+    var existing = state.savedFilters.filter(function(f){ return f.query === q; });
+    if (existing.length > 0) {
+      state.savedFilters = state.savedFilters.filter(function(f){ return f.query !== q; });
+    } else {
+      state.savedFilters.push({ id: Date.now() + ':' + Math.random(), name: q, query: q, timestamp: new Date().toISOString() });
+    }
+    localStorage.setItem('logtap-saved-filters', JSON.stringify(state.savedFilters));
+    // Use targeted updates so the input keeps focus + cursor position
+    updateSearchUI();
+    // Also refresh saved-filters popover if open
+    if (state.showSavedFilters) render();
+  }
+  function loadSaved(f){
+    state.searchQuery = f.query;
+    state.showSavedFilters = false;
+    render();
+  }
+  function deleteSaved(id){
+    state.savedFilters = state.savedFilters.filter(function(f){ return f.id !== id; });
+    localStorage.setItem('logtap-saved-filters', JSON.stringify(state.savedFilters));
+    render();
+  }
+
+  // ---------- CONTEXT MENU ----------
+  function showContextMenu(x, y, items){
+    state.contextMenu = { x: x, y: y, items: items };
+    render();
+  }
+  function hideContextMenu(){
+    if (state.contextMenu) { state.contextMenu = null; render(); }
+  }
+  document.addEventListener('click', function(){ hideContextMenu(); });
+
+  // ---------- RENDER ----------
+  function h(tag, attrs, children){
+    var el = document.createElement(tag);
+    if (attrs) {
+      Object.keys(attrs).forEach(function(k){
+        var v = attrs[k];
+        if (v == null || v === false) return;
+        if (k === 'class') el.className = v;
+        else if (k === 'style' && typeof v === 'object') {
+          Object.keys(v).forEach(function(s){ el.style[s] = v[s]; });
+        } else if (k.indexOf('on') === 0 && typeof v === 'function') {
+          el.addEventListener(k.substring(2).toLowerCase(), v);
+        } else if (k === 'html') {
+          el.innerHTML = v;
+        } else {
+          el.setAttribute(k, v);
+        }
+      });
+    }
+    if (children != null) {
+      if (!Array.isArray(children)) children = [children];
+      children.forEach(function(c){
+        if (c == null || c === false) return;
+        if (typeof c === 'string' || typeof c === 'number') el.appendChild(document.createTextNode(String(c)));
+        else el.appendChild(c);
+      });
+    }
+    return el;
+  }
+
+  function render(){
+    applyTheme();
+    root.innerHTML = '';
+    root.appendChild(buildToolbar());
+    root.appendChild(buildMetrics());
+    root.appendChild(buildMain());
+    root.appendChild(buildStatusBar());
+    if (state.contextMenu) root.appendChild(buildContextMenu());
+  }
+
+  function buildToolbar(){
+    var info = state.appInfo;
+    var iconHtml = info && info.appIconBase64
+      ? '<img src="data:image/png;base64,' + info.appIconBase64 + '"/>'
+      : 'LT';
+    var brand = h('div', {class:'brand'},[
+      h('div', {class:'brand-icon', html: iconHtml}),
+      h('div', {class:'brand-text'}, [
+        h('div', {class:'brand-name'}, info ? info.appName : 'LogTap'),
+        h('div', {class:'brand-meta'}, info ? ('v' + info.versionName + ' (build ' + info.versionCode + ')') : 'Connecting...')
+      ])
+    ]);
+
+    var saved = isCurrentSaved();
+    var starBtn = state.searchQuery.trim()
+      ? h('button', {class:'star-btn', title: saved ? 'Remove from favorites' : 'Save to favorites', onclick: function(e){ e.stopPropagation(); toggleSaveCurrent(); }}, saved ? '★' : '☆')
+      : null;
+
+    var inp = h('input', {
+      id: 'search-input', class: 'search-input', type: 'text',
+      placeholder: 'Search or use commands: exclude:tag:MainActivity, level:ERROR...',
+      value: state.searchQuery,
+      autocomplete: 'off', spellcheck: 'false',
+      oninput: function(e){ state.searchQuery = e.target.value; updateSuggestions(); updateSearchUI(); },
+      onkeydown: function(e){
+        if (state.showSuggestions && state.suggestions.length > 0) {
+          if (e.key === 'ArrowDown') { e.preventDefault(); state.suggestSel = (state.suggestSel + 1) % state.suggestions.length; refreshSuggestPanel(); return; }
+          if (e.key === 'ArrowUp') { e.preventDefault(); state.suggestSel = (state.suggestSel - 1 + state.suggestions.length) % state.suggestions.length; refreshSuggestPanel(); return; }
+          if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); applySuggestion(state.suggestions[state.suggestSel].cmd); return; }
+          if (e.key === 'Escape') { state.showSuggestions = false; refreshSuggestPanel(); return; }
+        }
+      },
+      onfocus: function(){ updateSuggestions(); refreshSuggestPanel(); },
+      onblur: function(){ setTimeout(function(){ state.showSuggestions = false; refreshSuggestPanel(); }, 150); }
+    });
+
+    var suggestPanel = (state.showSuggestions && state.suggestions.length > 0)
+      ? buildSuggestPanel()
+      : null;
+
+    var searchWrap = h('div', {class:'search-wrap'}, [inp, starBtn, suggestPanel]);
+
+    var btnFilters = h('button', {class:'icon-btn' + (state.showFilters?' active':''), title:'Filters', onclick: function(e){ e.stopPropagation(); state.showFilters = !state.showFilters; render(); }}, '☰');
+    var btnSavedBadge = state.savedFilters.length > 0 ? h('span', {class:'badge'}, String(state.savedFilters.length)) : null;
+    var btnSaved = h('button', {class:'icon-btn' + (state.showSavedFilters?' active':''), title:'Saved Filters', onclick: function(e){ e.stopPropagation(); state.showSavedFilters = !state.showSavedFilters; state.showSettings = false; render(); }}, ['★', btnSavedBadge]);
+
+    var btnTheme = h('button', {class:'icon-btn', title: state.darkMode ? 'Switch to Light' : 'Switch to Dark', onclick: function(){ state.darkMode = !state.darkMode; localStorage.setItem('logtap-dark-mode', JSON.stringify(state.darkMode)); render(); }}, state.darkMode ? '◐' : '◑');
+    var btnClear = h('button', {class:'icon-btn danger', title:'Clear logs', onclick: clearLogs}, '🗑');
+    var btnExport = h('button', {class:'icon-btn accent', title:'Export JSON', onclick: exportJson}, '💾');
+    var btnSettings = h('button', {class:'icon-btn' + (state.showSettings?' active':''), title:'Settings', onclick: function(e){ e.stopPropagation(); state.showSettings = !state.showSettings; state.showSavedFilters = false; render(); }}, '⚙');
+
+    var settingsPanel = state.showSettings ? buildSettingsPanel() : null;
+    var savedPanel = state.showSavedFilters ? buildSavedPanel() : null;
+
+    var right = h('div', {class:'toolbar-right'}, [btnTheme, btnClear, btnExport, h('div', {style:{position:'relative'}}, [btnSettings, settingsPanel])]);
+
+    var filterPanel = state.showFilters ? buildFilterPanel() : null;
+
+    return h('div', {class:'tb', onclick: function(e){ e.stopPropagation(); }}, [brand, searchWrap, btnFilters, btnSaved, right, savedPanel, filterPanel]);
+  }
+
+  function preserveFocus(id){
+    var el = document.getElementById(id);
+    if (el && document.activeElement !== el) {
+      var pos = el.selectionStart;
+      el.focus();
+      if (pos != null) try { el.setSelectionRange(pos, pos); } catch(e){}
+    }
+  }
+
+  function buildSuggestPanel(){
+    var hdr = h('div', {class:'suggest-hdr'}, '💡 Command Suggestions');
+    var items = state.suggestions.map(function(s, i){
+      var cmd = h('div', {class:'suggest-cmd'}, s.cmd);
+      if (s.cmd.charAt(s.cmd.length-1) === ':') cmd.appendChild(h('span', {class:'ph'}, '<value>'));
+      var children = [cmd, h('div', {class:'suggest-desc'}, s.desc)];
+      if (s.example) children.push(h('div', {class:'suggest-ex'}, 'Example: ' + s.example));
+      return h('div', {
+        class: 'suggest-item' + (i === state.suggestSel ? ' sel' : ''),
+        onmousedown: function(e){ e.preventDefault(); e.stopPropagation(); applySuggestion(s.cmd); },
+        onmouseenter: function(){ state.suggestSel = i; }
+      }, children);
+    });
+    return h('div', {class:'suggest'}, [hdr].concat(items));
+  }
+
+  function buildSettingsPanel(){
+    var themeSel = h('select', {value: state.theme, onchange: function(e){ state.theme = e.target.value; localStorage.setItem('logtap-theme', state.theme); render(); }}, [
+      h('option', {value:'android'}, 'Android Studio'),
+      h('option', {value:'xcode'}, 'Xcode'),
+      h('option', {value:'grafana'}, 'Grafana'),
+      h('option', {value:'modern'}, 'Modern')
+    ]);
+    themeSel.value = state.theme;
+    var viewSel = h('select', {value: state.viewMode, onchange: function(e){ state.viewMode = e.target.value; localStorage.setItem('logtap-view-mode', state.viewMode); render(); }}, [
+      h('option', {value:'logcat'}, 'Logcat View'),
+      h('option', {value:'table'}, 'Table View')
+    ]);
+    viewSel.value = state.viewMode;
+    var densSel = h('select', {value: state.density, onchange: function(e){ state.density = e.target.value; localStorage.setItem('logtap-density', state.density); render(); }}, [
+      h('option', {value:'compact'}, 'Compact'),
+      h('option', {value:'comfortable'}, 'Comfortable'),
+      h('option', {value:'spacious'}, 'Spacious')
+    ]);
+    densSel.value = state.density;
+    return h('div', {class:'popover', style:{top:'calc(100% + 8px)', right:'0', minWidth:'220px'}}, [
+      h('div', {class:'popover-section'}, 'Settings'),
+      h('div', {class:'popover-section', style:{fontSize:'12px', textTransform:'none'}}, 'Theme'),
+      themeSel,
+      h('div', {class:'popover-section', style:{fontSize:'12px', textTransform:'none', marginTop:'8px'}}, 'View Mode'),
+      viewSel,
+      h('div', {class:'popover-section', style:{fontSize:'12px', textTransform:'none', marginTop:'8px'}}, 'Density'),
+      densSel
+    ]);
+  }
+
+  function buildSavedPanel(){
+    var rows = state.savedFilters.length === 0
+      ? [h('div', {class:'saved-empty'}, 'No saved filters yet')]
+      : state.savedFilters.map(function(f){
+          return h('div', {class:'saved-row'}, [
+            h('div', {class:'body', onclick: function(){ loadSaved(f); }}, [
+              h('div', {style:{fontSize:'13px', fontWeight:'500'}}, f.name),
+              h('div', {class:'saved-q'}, f.query || '(no query)'),
+              h('div', {class:'saved-ts'}, new Date(f.timestamp).toLocaleString())
+            ]),
+            h('button', {class:'del-btn', onclick: function(e){ e.stopPropagation(); deleteSaved(f.id); }}, '🗑')
+          ]);
+        });
+    return h('div', {class:'popover', style:{top:'56px', right:'16px', minWidth:'380px', maxWidth:'500px'}}, [
+      h('div', {style:{fontSize:'14px', fontWeight:'600', marginBottom:'12px'}}, 'Saved Filters'),
+      h('div', {class:'saved-list'}, rows)
+    ]);
+  }
+
+  function buildFilterPanel(){
+    var f = state.filters;
+    function sel(label, val, options, onchange){
+      var s = h('select', {onchange: onchange}, options.map(function(o){
+        return h('option', {value: o.v}, o.l);
+      }));
+      s.value = val;
+      return h('div', {}, [h('label', {}, label), s]);
+    }
+    var typeBox = sel('Type', f.type, [
+      {v:'all', l:'All'}, {v:'http', l:'HTTP'}, {v:'log', l:'Logs'}, {v:'ws', l:'WebSocket'}
+    ], function(e){ f.type = e.target.value; render(); });
+    var methodBox = sel('Method', f.method, [
+      {v:'all', l:'All'}, {v:'GET', l:'GET'}, {v:'POST', l:'POST'}, {v:'PUT', l:'PUT'}, {v:'DELETE', l:'DELETE'}, {v:'PATCH', l:'PATCH'}
+    ], function(e){ f.method = e.target.value; render(); });
+    var statusBox = sel('Status', f.status, [
+      {v:'all', l:'All'}, {v:'2xx', l:'2xx'}, {v:'4xx', l:'4xx'}, {v:'5xx', l:'5xx'}
+    ], function(e){ f.status = e.target.value; render(); });
+    var levelBox = sel('Level', f.level, [
+      {v:'all', l:'All'}, {v:'VERBOSE', l:'VERBOSE'}, {v:'DEBUG', l:'DEBUG'}, {v:'INFO', l:'INFO'}, {v:'WARN', l:'WARN'}, {v:'ERROR', l:'ERROR'}, {v:'ASSERT', l:'ASSERT'}
+    ], function(e){ f.level = e.target.value; render(); });
+
+    var excTypeSel = h('select', {onchange: function(e){ state.excludeType = e.target.value; render(); }}, [
+      h('option', {value:'package'}, 'Package/Tag'),
+      h('option', {value:'message'}, 'Message')
+    ]);
+    excTypeSel.value = state.excludeType;
+
+    var excInput = h('input', {
+      id: 'exc-input', type:'text', placeholder: 'Exclude by ' + state.excludeType + '...',
+      value: state.excludeInput,
+      oninput: function(e){ state.excludeInput = e.target.value; },
+      onkeydown: function(e){ if (e.key === 'Enter') addExclusion(); }
+    });
+
+    var excBtn = h('button', {onclick: addExclusion}, 'Add');
+    var excRow = h('div', {class:'exclude-row'}, [excTypeSel, excInput, excBtn]);
+
+    var chips = [];
+    f.excludePackages.forEach(function(p){
+      chips.push(h('span', {class:'chip'}, [
+        '📦 ' + p,
+        h('button', {onclick: function(){ f.excludePackages = f.excludePackages.filter(function(x){ return x !== p; }); render(); }}, '×')
+      ]));
+    });
+    f.excludeMessages.forEach(function(m){
+      chips.push(h('span', {class:'chip'}, [
+        '💬 ' + m,
+        h('button', {onclick: function(){ f.excludeMessages = f.excludeMessages.filter(function(x){ return x !== m; }); render(); }}, '×')
+      ]));
+    });
+
+    var exclusionsBox = h('div', {style:{gridColumn:'span 2'}}, [
+      h('label', {}, 'Exclude Filters'),
+      excRow,
+      h('div', {class:'chips'}, chips)
+    ]);
+
+    return h('div', {class:'filter-panel'}, [typeBox, methodBox, statusBox, levelBox, exclusionsBox]);
+  }
+
+  function addExclusion(){
+    var v = state.excludeInput.trim();
+    if (!v) return;
+    if (state.excludeType === 'package') state.filters.excludePackages.push(v);
+    else state.filters.excludeMessages.push(v);
+    state.excludeInput = '';
+    render();
+  }
+
+  function buildMetrics(){
+    var m = computeMetrics();
+    function mk(label, val, color){
+      return h('div', {class:'metric'}, [
+        h('div', {class:'l'}, label),
+        h('div', {class:'v', style:{color: color}}, String(val))
+      ]);
+    }
+    return h('div', {class:'metrics'}, [
+      mk('Total', m.total, 'var(--text-primary)'),
+      mk('Network', m.network, 'var(--info)'),
+      mk('Logs', m.logs, 'var(--debug)'),
+      mk('Errors', m.errors, 'var(--error)'),
+      mk('Logs/min', m.perMin, 'var(--warn)'),
+      mk('Avg Response', m.avgResponseTime + 'ms', 'var(--accent)'),
+      mk('Filters', activeFilterCount(), 'var(--accent)')
+    ]);
+  }
+
+  function activeFilterCount(){
+    var f = state.filters; var c = 0;
+    ['type','method','status','level'].forEach(function(k){ if (f[k] !== 'all') c++; });
+    c += f.excludePackages.length + f.excludeMessages.length;
+    if (state.searchQuery.trim()) c++;
+    return c;
+  }
+
+  function buildMain(){
+    var filtered = getFiltered();
+    if (state.viewMode === 'logcat') {
+      return h('div', {class:'main'}, [buildLogcatView(filtered)]);
+    }
+    var children = [buildTableView(filtered)];
+    var sel = state.selectedId ? state.logs.filter(function(l){ return l.uid === state.selectedId; })[0] : null;
+    if (sel) children.push(buildDetail(sel));
+    return h('div', {class:'main'}, children);
+  }
+
+  // ---------- LOGCAT VIEW ----------
+  function buildLogcatView(filtered){
+    var container = h('div', {class:'logcat', id:'logcat-container', onscroll: handleScroll});
+    filtered.forEach(function(log){ container.appendChild(renderLogcatRow(log)); });
+    if (filtered.length === 0) container.appendChild(h('div', {style:{padding:'24px', textAlign:'center', color:'var(--text-secondary)'}}, 'No logs match current filters'));
+    setTimeout(function(){
+      if (state.autoScroll) container.scrollTop = container.scrollHeight;
+    }, 0);
+    return container;
+  }
+
+  function renderLogcatRow(log){
+    var time = fmtTime(log.ts);
+    var pidStr = pidTid(log);
+    var lvl = levelChar(log.level || 'I');
+    var clsLvl = 'lvl-' + lvl;
+    var tagPart = '';
+    var msgPart = '';
+    if (log.type === 'log') {
+      tagPart = log.tag || '';
+      msgPart = log.message || '';
+    } else if (log.type === 'http') {
+      tagPart = 'HTTP/' + (log.method || '');
+      var statusStr = log.status != null ? log.status : '...';
+      var dur = log.duration != null ? (log.duration + 'ms') : '';
+      msgPart = (log.method || '') + ' ' + statusStr + ' ' + (log.url || '') + (dur ? ' (' + dur + ')' : '');
+    } else if (log.type === 'ws') {
+      tagPart = 'WS';
+      msgPart = '[' + (log.direction || '') + '] ' + (log.message || '');
+    }
+
+    var row = h('div', {class:'logcat-row', oncontextmenu: function(e){ e.preventDefault(); e.stopPropagation(); openContextMenu(e, log); }},
+      [
+        h('span', {class:'logcat-time'}, time + '  '),
+        h('span', {class:'logcat-tid', title:'pid-tid'}, pidStr + '  '),
+        h('span', {class: clsLvl}, lvl + ' '),
+        h('span', {class:'logcat-tag ' + clsLvl}, tagPart + ': '),
+        h('span', {class: log.type === 'log' ? clsLvl : ''}, msgPart)
+      ]
+    );
+
+    // Inline net details for HTTP
+    if (log.type === 'http') {
+      if (log.requestHeaders) {
+        var keys = Object.keys(log.requestHeaders);
+        keys.forEach(function(k){
+          var vals = log.requestHeaders[k];
+          (vals || []).forEach(function(v){
+            row.appendChild(h('div', {class:'logcat-net-line'}, [h('span',{class:'k'}, k + ': '), h('span',{}, v)]));
+          });
+        });
+      }
+      if (log.requestBody) {
+        row.appendChild(h('div', {class:'logcat-net-line req'}, '> ' + log.requestBody));
+      }
+      if (log.responseBody) {
+        var cls = (log.status >= 400 ? 'res-err' : 'res-ok');
+        row.appendChild(h('div', {class:'logcat-net-line ' + cls}, '< ' + log.responseBody));
+      }
+      if (log.error) {
+        row.appendChild(h('div', {class:'logcat-net-line res-err'}, 'ERROR: ' + log.error));
+      }
+    } else if (log.type === 'ws' && log.responseBody) {
+      row.appendChild(h('div', {class:'logcat-net-line'}, '  ' + log.responseBody));
+    }
+    return row;
+  }
+
+  // ---------- TABLE VIEW ----------
+  function buildTableView(filtered){
+    var widths = state.columnWidths;
+    var gridTemplate = widths.map(function(w){ return w + 'px'; }).join(' ');
+    var headers = ['ID', 'Time', 'PID/TID', 'Type', 'Tag/Method', 'Level/Status', 'Size', 'Message/URL', 'Response'];
+    var headEl = h('div', {class:'tbl-head', style:{gridTemplateColumns: gridTemplate}},
+      headers.map(function(label, i){
+        var col = h('div', {class:'col'}, [h('span', {}, label)]);
+        if (i < widths.length - 1) {
+          var resize = h('div', {class:'col-resize', onmousedown: function(e){ startColResize(i, e); }});
+          col.appendChild(resize);
+        }
+        return col;
+      })
+    );
+    var bodyEl = h('div', {class:'tbl-body'});
+    filtered.forEach(function(log){ bodyEl.appendChild(renderTableRow(log, gridTemplate)); });
+    if (filtered.length === 0) bodyEl.appendChild(h('div', {style:{padding:'24px', textAlign:'center', color:'var(--text-secondary)'}}, 'No logs match current filters'));
+    var wrap = h('div', {class:'tbl-wrap', id:'tbl-wrap', onscroll: handleScroll}, [headEl, bodyEl]);
+    setTimeout(function(){
+      if (state.autoScroll) wrap.scrollTop = wrap.scrollHeight;
+    }, 0);
+    return wrap;
+  }
+
+  function renderTableRow(log, gridTemplate){
+    var densityCls = state.density === 'compact' ? ' compact' : (state.density === 'spacious' ? ' spacious' : '');
+    var selectedCls = log.uid === state.selectedId ? ' selected' : '';
+    var typeCls = 'type-' + log.type;
+    var typeLabel = log.type === 'http' ? 'HTTP' : log.type === 'ws' ? 'WS' : 'LOG';
+    var size = log.responseBody ? log.responseBody.length : (log.requestBody ? log.requestBody.length : '');
+    var tagOrMethod = log.type === 'http' ? log.method : log.tag;
+    var levelOrStatus;
+    if (log.type === 'http' && log.status != null) {
+      levelOrStatus = h('span', {class:'status-pill ' + statusClass(log.status)}, String(log.status));
+    } else {
+      levelOrStatus = h('span', {class: 'lvl-' + levelChar(log.level || '')}, log.level || (log.type === 'http' ? '...' : ''));
+    }
+
+    var msgUrl;
+    if (log.type === 'http') {
+      var children = [h('div', {class:'url-cell'}, log.url || '')];
+      if (log.requestBody) children.push(h('div', {class:'url-body'}, '↑ ' + log.requestBody));
+      msgUrl = h('div', {}, children);
+    } else if (log.type === 'ws') {
+      msgUrl = h('div', {class:'url-cell'}, '[' + (log.direction || '') + '] ' + (log.message || ''));
+    } else {
+      msgUrl = h('div', {}, log.message || '');
+    }
+
+    var resp;
+    if (log.type === 'http' && log.responseBody) {
+      var cls = (log.status >= 400 ? 'resp-err' : 'resp-ok');
+      resp = h('div', {class:'resp-cell ' + cls}, log.responseBody);
+    } else if (log.type === 'ws' && log.responseBody) {
+      resp = h('div', {class:'resp-cell'}, log.responseBody);
+    } else {
+      resp = h('div', {class:'muted'}, '');
+    }
+
+    var row = h('div', {
+      class: 'tbl-row' + densityCls + selectedCls,
+      style: {gridTemplateColumns: gridTemplate},
+      onclick: function(){ state.selectedId = log.uid; render(); },
+      ondblclick: function(){
+        state.expandedIds[log.uid] = !state.expandedIds[log.uid];
+        render();
+      },
+      oncontextmenu: function(e){ e.preventDefault(); e.stopPropagation(); openContextMenu(e, log); }
+    }, [
+      h('div', {class:'tbl-cell'}, h('span', {class:'tt-id'}, '#' + (log.serverId || ''))),
+      h('div', {class:'tbl-cell'}, h('span', {class:'tt-time'}, fmtTime(log.ts))),
+      h('div', {class:'tbl-cell'}, h('span', {class:'tt-time', title:'pid-tid'}, pidTid(log) || '—')),
+      h('div', {class:'tbl-cell'}, h('span', {class:'type-pill ' + typeCls}, typeLabel)),
+      h('div', {class:'tbl-cell'}, h('span', {class: log.type === 'http' ? 'method-tag' : ('lvl-' + levelChar(log.level||''))}, tagOrMethod || '')),
+      h('div', {class:'tbl-cell'}, levelOrStatus),
+      h('div', {class:'tbl-cell muted'}, String(size)),
+      h('div', {class:'tbl-cell'}, msgUrl),
+      h('div', {class:'tbl-cell'}, resp)
+    ]);
+
+    if (state.expandedIds[log.uid]) {
+      row.appendChild(buildExpandArea(log));
+    }
+    return row;
+  }
+
+  function buildExpandArea(log){
+    var sections = [];
+    if (log.requestHeaders) {
+      sections.push(h('div', {class:'exp-section'}, [
+        h('div', {class:'exp-label'}, 'Request Headers'),
+        renderHeaders(log.requestHeaders)
+      ]));
+    }
+    if (log.requestBody) {
+      sections.push(h('div', {class:'exp-section'}, [
+        h('div', {class:'exp-label'}, 'Request Body'),
+        h('div', {class:'exp-content'}, log.requestBody)
+      ]));
+    }
+    if (log.responseHeaders) {
+      sections.push(h('div', {class:'exp-section'}, [
+        h('div', {class:'exp-label'}, 'Response Headers'),
+        renderHeaders(log.responseHeaders)
+      ]));
+    }
+    if (log.responseBody) {
+      sections.push(h('div', {class:'exp-section'}, [
+        h('div', {class:'exp-label'}, 'Response Body'),
+        h('div', {class:'exp-content'}, log.responseBody)
+      ]));
+    }
+    if (log.error) {
+      sections.push(h('div', {class:'exp-section'}, [
+        h('div', {class:'exp-label'}, 'Error'),
+        h('div', {class:'exp-content'}, log.error)
+      ]));
+    }
+    if (sections.length === 0) {
+      sections.push(h('div', {class:'muted'}, 'No additional details'));
+    }
+    return h('div', {class:'expand-area'}, sections);
+  }
+
+  function renderHeaders(headers){
+    var grid = h('div', {class:'headers-grid'});
+    Object.keys(headers).forEach(function(k){
+      var vals = headers[k] || [];
+      vals.forEach(function(v){
+        grid.appendChild(h('div', {class:'hk'}, k));
+        grid.appendChild(h('div', {class:'hv'}, v));
+      });
+    });
+    return grid;
+  }
+
+  // ---------- DETAIL PANEL ----------
+  function buildDetail(log){
+    var tabs = ['overview'];
+    if (log.type === 'http') { tabs.push('request'); tabs.push('response'); }
+    if (!log._detailTab) log._detailTab = 'overview';
+
+    var tabBtns = tabs.map(function(t){
+      return h('button', {class:'detail-tab' + (log._detailTab === t ? ' active' : ''), onclick: function(){ log._detailTab = t; render(); }}, t.charAt(0).toUpperCase() + t.substring(1));
+    });
+
+    var bodyEl;
+    if (log._detailTab === 'overview') {
+      var rows = [];
+      rows.push(['Time', new Date(log.ts).toLocaleString()]);
+      rows.push(['Type', log.type.toUpperCase()]);
+      if (log.type === 'http') {
+        rows.push(['Method', log.method || '']);
+        rows.push(['URL', log.url || '']);
+        if (log.status != null) rows.push(['Status', String(log.status)]);
+        if (log.duration != null) rows.push(['Duration', log.duration + 'ms']);
+      } else {
+        rows.push(['Tag', log.tag || '']);
+        rows.push(['Level', log.level || '']);
+      }
+      rows.push(['Thread', log.thread || '']);
+      bodyEl = h('div', {}, rows.map(function(r){
+        return h('div', {style:{marginBottom:'12px'}}, [
+          h('div', {style:{fontSize:'11px', color:'var(--text-secondary)', textTransform:'uppercase', marginBottom:'4px'}}, r[0]),
+          h('div', {style:{fontSize:'13px', wordBreak:'break-all'}}, r[1])
+        ]);
+      }).concat([
+        h('div', {style:{marginTop:'12px'}}, [
+          h('div', {style:{fontSize:'11px', color:'var(--text-secondary)', textTransform:'uppercase', marginBottom:'4px'}}, 'Message'),
+          h('div', {class:'exp-content'}, log.message || '')
+        ])
+      ]));
+    } else if (log._detailTab === 'request') {
+      bodyEl = h('div', {}, [
+        log.requestHeaders ? h('div', {class:'exp-section'}, [h('div', {class:'exp-label'}, 'Headers'), renderHeaders(log.requestHeaders)]) : h('div', {class:'muted'}, 'No request headers'),
+        log.requestBody ? h('div', {class:'exp-section'}, [h('div', {class:'exp-label'}, 'Body'), h('div', {class:'exp-content'}, log.requestBody)]) : h('div', {class:'muted'}, 'No request body')
+      ]);
+    } else if (log._detailTab === 'response') {
+      bodyEl = h('div', {}, [
+        log.responseHeaders ? h('div', {class:'exp-section'}, [h('div', {class:'exp-label'}, 'Headers'), renderHeaders(log.responseHeaders)]) : h('div', {class:'muted'}, 'No response headers'),
+        log.responseBody ? h('div', {class:'exp-section'}, [h('div', {class:'exp-label'}, 'Body'), h('div', {class:'exp-content'}, log.responseBody)]) : h('div', {class:'muted'}, 'No response body')
+      ]);
+    }
+
+    return h('div', {class:'detail'}, [
+      h('div', {class:'detail-hdr'}, [
+        h('div', {class:'detail-title'}, log.type === 'http' ? ((log.method||'') + ' ' + (log.url||'')) : (log.tag || log.message || '')),
+        h('button', {class:'icon-btn', title:'Close', onclick: function(){ state.selectedId = null; render(); }}, '✕')
+      ]),
+      h('div', {class:'detail-tabs'}, tabBtns),
+      h('div', {class:'detail-body'}, bodyEl)
+    ]);
+  }
+
+  // ---------- COLUMN RESIZE ----------
+  var resizing = null;
+  function startColResize(i, e){
+    e.preventDefault(); e.stopPropagation();
+    resizing = { i: i, startX: e.clientX, startW: state.columnWidths[i] };
+    document.addEventListener('mousemove', onColResize);
+    document.addEventListener('mouseup', stopColResize);
+  }
+  function onColResize(e){
+    if (!resizing) return;
+    var diff = e.clientX - resizing.startX;
+    var nw = Math.max(50, resizing.startW + diff);
+    state.columnWidths[resizing.i] = nw;
+    // Update grid template directly without full render
+    var head = $('.tbl-head');
+    var rows = $$('.tbl-row');
+    var template = state.columnWidths.map(function(w){ return w + 'px'; }).join(' ');
+    if (head) head.style.gridTemplateColumns = template;
+    rows.forEach(function(r){ r.style.gridTemplateColumns = template; });
+  }
+  function stopColResize(){
+    if (!resizing) return;
+    localStorage.setItem('logtap-cols', JSON.stringify(state.columnWidths));
+    resizing = null;
+    document.removeEventListener('mousemove', onColResize);
+    document.removeEventListener('mouseup', stopColResize);
+  }
+
+  // ---------- AUTO SCROLL ----------
+  function handleScroll(e){
+    var t = e.target;
+    var atBottom = t.scrollHeight - t.scrollTop - t.clientHeight < 50;
+    if (!atBottom && state.autoScroll) state.autoScroll = false;
+    else if (atBottom && !state.autoScroll) state.autoScroll = true;
+    renderStatusBar();
+  }
+
+  function renderStatusBar(){
+    var sb = $('#status-bar');
+    if (sb && sb.parentNode) {
+      sb.parentNode.replaceChild(buildStatusBar(), sb);
+    }
+  }
+
+  // ---------- CONTEXT MENU OPEN ----------
+  function openContextMenu(e, log){
+    var items = [];
+    if (log.type === 'http') {
+      items.push({label:'Copy URL', action: function(){ copyText(log.url || ''); }});
+      items.push({label:'Copy as cURL', action: function(){ copyText(asCurl(log)); }});
+      items.push({sep: true});
+    }
+    items.push({label:'Copy Message', action: function(){ copyText(log.message || ''); }});
+    items.push({label:'Copy as JSON', action: function(){ copyText(JSON.stringify(log, null, 2)); }});
+    items.push({sep: true});
+    if (log.tag) items.push({label:'Exclude tag: ' + log.tag, action: function(){ state.filters.excludePackages.push(log.tag); render(); }});
+    if (log.message) items.push({label:'Exclude message text', action: function(){ state.filters.excludeMessages.push(log.message.substring(0, 40)); render(); }});
+    showContextMenu(e.clientX, e.clientY, items);
+  }
+  function buildContextMenu(){
+    var cm = state.contextMenu;
+    var children = cm.items.map(function(it){
+      if (it.sep) return h('div', {class:'ctx-sep'});
+      return h('div', {class:'ctx-item', onclick: function(e){ e.stopPropagation(); it.action(); hideContextMenu(); }}, it.label);
+    });
+    return h('div', {class:'ctx-menu', style:{left: cm.x + 'px', top: cm.y + 'px'}}, children);
+  }
+
+  // ---------- STATUS BAR ----------
+  function buildStatusBar(){
+    var filtered = getFiltered();
+    var connDot = h('span', {class: 'conn-dot conn-' + state.connectionStatus});
+    var connText;
+    if (state.connectionStatus === 'connecting') connText = 'Connecting...';
+    else if (state.connectionStatus === 'connected') connText = 'Connected';
+    else connText = 'Disconnected';
+    var asLabel = state.autoScroll ? 'Auto-scroll: ON' : 'Auto-scroll: OFF (scroll to bottom to resume)';
+    return h('div', {class:'status-bar', id:'status-bar'}, [
+      h('span', {}, 'Theme: ' + state.theme),
+      h('span', {}, 'View: ' + state.viewMode),
+      h('span', {}, 'Showing ' + filtered.length + ' of ' + state.logs.length + ' logs'),
+      h('div', {class:'right'}, [
+        h('span', {}, asLabel),
+        h('span', {style:{display:'flex', alignItems:'center', gap:'6px'}}, [connDot, connText])
+      ])
+    ]);
+  }
+
+  // ---------- ACTIONS ----------
+  function clearLogs(){
+    if (!confirm('Clear all logs?')) return;
+    fetch('/api/clear', {method: 'POST'}).catch(function(){});
+    state.logs = [];
+    state.httpPending = {};
+    state.selectedId = null;
+    state.expandedIds = {};
+    render();
+  }
+  function exportJson(){
+    var data = JSON.stringify(getFiltered(), null, 2);
+    var blob = new Blob([data], {type:'application/json'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'logtap-export-' + new Date().toISOString().slice(0,19).replace(/:/g,'-') + '.json';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+  }
+
+  // ---------- DATA LOADING ----------
+  function loadAppInfo(){
+    fetch('/api/info').then(function(r){ return r.json(); }).then(function(d){
+      state.appInfo = d;
+      refreshLiveAreas();
+    }).catch(function(){});
+  }
+  function loadBacklog(){
+    fetch('/api/logs?limit=500').then(function(r){ return r.json(); }).then(function(arr){
+      arr.forEach(ingest);
+      refreshLiveAreas();
+    }).catch(function(){});
+  }
+  var ws = null;
+  function connectWs(){
+    state.connectionStatus = 'connecting';
+    refreshLiveAreas();
+    try {
+      var loc = window.location;
+      var proto = loc.protocol === 'https:' ? 'wss:' : 'ws:';
+      ws = new WebSocket(proto + '//' + loc.host + '/ws');
+      ws.onopen = function(){ state.connectionStatus = 'connected'; refreshLiveAreas(); };
+      ws.onclose = function(){
+        state.connectionStatus = 'disconnected';
+        refreshLiveAreas();
+        setTimeout(connectWs, 2000);
+      };
+      ws.onerror = function(){ /* onclose will fire */ };
+      ws.onmessage = function(e){
+        try {
+          var ev = JSON.parse(e.data);
+          ingest(ev);
+          renderThrottled();
+        } catch(err) { console.error('Bad message', err); }
+      };
+    } catch(e) {
+      state.connectionStatus = 'disconnected';
+      refreshLiveAreas();
+      setTimeout(connectWs, 3000);
+    }
+  }
+
+  // Throttle re-renders during high-frequency log streams.
+  // IMPORTANT: never call full render() here — it would re-create the search input
+  // and steal focus from the user mid-typing. Update only data-driven sections.
+  var rerenderPending = false;
+  function renderThrottled(){
+    if (rerenderPending) return;
+    rerenderPending = true;
+    requestAnimationFrame(function(){
+      rerenderPending = false;
+      refreshLiveAreas();
+    });
+  }
+  function refreshLiveAreas(){
+    refreshSavedBadge();
+    replaceSection('.metrics', buildMetrics);
+    replaceSection('.main', buildMain);
+    replaceSection('#status-bar', buildStatusBar);
+    // App info banner — only update brand text/icon if it changed
+    var bn = $('.brand-name');
+    var bm = $('.brand-meta');
+    var bi = $('.brand-icon');
+    if (state.appInfo && bn && bm && bi) {
+      bn.textContent = state.appInfo.appName || 'LogTap';
+      bm.textContent = 'v' + state.appInfo.versionName + ' (build ' + state.appInfo.versionCode + ')';
+      if (state.appInfo.appIconBase64 && !bi.querySelector('img')) {
+        bi.innerHTML = '<img src="data:image/png;base64,' + state.appInfo.appIconBase64 + '"/>';
+      }
+    }
+  }
+
+  // ---------- KEYBOARD SHORTCUTS ----------
+  document.addEventListener('keydown', function(e){
+    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+      e.preventDefault();
+      var inp = $('#search-input');
+      if (inp) inp.focus();
+    }
+    if (e.key === 'Escape') {
+      if (state.contextMenu) { hideContextMenu(); return; }
+      if (state.showSettings) { state.showSettings = false; render(); return; }
+      if (state.showSavedFilters) { state.showSavedFilters = false; render(); return; }
+      if (state.showFilters) { state.showFilters = false; render(); return; }
+      if (state.selectedId) { state.selectedId = null; render(); return; }
+    }
+  });
+
+  // ---------- BOOT ----------
+  applyTheme();
+  render();
+  loadAppInfo();
+  loadBacklog();
+  connectWs();
+  // Periodic light refresh for time-sensitive metrics (logs/min) — never touches the input.
+  setInterval(function(){
+    replaceSection('.metrics', buildMetrics);
+    replaceSection('#status-bar', buildStatusBar);
+  }, 5000);
+})();
+"""#
 }
-

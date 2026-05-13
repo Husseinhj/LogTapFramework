@@ -45,6 +45,9 @@ public final class LogTapURLProtocol: URLProtocol, URLSessionDataDelegate {
             bodyPreview = nil
         }
 
+        let reqHeaders: [String: [String]]? = r.allHTTPHeaderFields.map { d in
+            d.reduce(into: [:]) { $0[$1.key] = [$1.value] }
+        }
         LogTap.shared.emit(
             LogEvent(
                 kind: .http,
@@ -52,11 +55,7 @@ public final class LogTapURLProtocol: URLProtocol, URLSessionDataDelegate {
                 summary: "→ \(r.httpMethod ?? "GET") \(r.url?.absoluteString ?? "")",
                 url: r.url?.absoluteString,
                 method: r.httpMethod,
-                headers: r.allHTTPHeaderFields.map { d in
-                    d.reduce(into: [:]) {
-                        $0[$1.key] = [$1.value]
-                    }
-                },
+                headers: LogTapURLProtocol.redact(reqHeaders),
                 bodyPreview: bodyPreview,
                 bodyIsTruncated: false,
                 tag: "HTTP"
@@ -113,7 +112,14 @@ public final class LogTapURLProtocol: URLProtocol, URLSessionDataDelegate {
         }
 
         let httpResp = resp as? HTTPURLResponse
+        let max = LogTap.shared.config.maxBodyBytes
+        let truncated = data.count > max
         let bodyPreview = LogTap.makeBodyPreview(data: data, contentType: httpResp?.value(forHTTPHeaderField: "Content-Type"))
+        let respHeaders: [String: [String]]? = httpResp?.allHeaderFields.reduce(into: [:], { acc, kv in
+            if let k = kv.key as? String, let v = kv.value as? String {
+                acc[k] = [v]
+            }
+        })
         LogTap.shared.emit(
             LogEvent(
                 kind: .http,
@@ -122,17 +128,21 @@ public final class LogTapURLProtocol: URLProtocol, URLSessionDataDelegate {
                 url: self.request.url?.absoluteString,
                 method: self.request.httpMethod,
                 status: httpResp?.statusCode,
-                headers: httpResp?.allHeaderFields.reduce(into: [:], { acc, kv in
-                    if let k = kv.key as? String, let v = kv.value as? String {
-                        acc[k] = [v]
-                    }
-                }
-                ),
+                headers: LogTapURLProtocol.redact(respHeaders),
                 bodyPreview: bodyPreview,
+                bodyIsTruncated: truncated,
                 bodyBytes: data.count,
                 tookMs: tookMs,
                 tag: "HTTP"
             )
         )
+    }
+
+    private static func redact(_ headers: [String: [String]]?) -> [String: [String]]? {
+        guard let headers else { return nil }
+        let redactSet = Set(LogTap.shared.config.redactHeaders.map { $0.lowercased() })
+        return headers.reduce(into: [:]) { acc, kv in
+            acc[kv.key] = redactSet.contains(kv.key.lowercased()) ? ["(redacted)"] : kv.value
+        }
     }
 }

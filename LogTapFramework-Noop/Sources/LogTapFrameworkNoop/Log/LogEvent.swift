@@ -1,34 +1,31 @@
 //
-//  LogEvent.swift
-//  LogTapFramework
-//
-//  Created by Hussein Habibi Juybari on 06.09.25.
+//  LogEvent.swift (Noop)
 //
 
 import Foundation
 
 public enum LogKind: String, Codable {
-  case http = "HTTP"
-  case websocket = "WEBSOCKET"
-  case log = "LOG"
+    case http = "HTTP"
+    case websocket = "WEBSOCKET"
+    case log = "LOG"
 }
 
 public enum Direction: String, Codable {
-  case request = "REQUEST"
-  case response = "RESPONSE"
-  case outbound = "OUTBOUND"
-  case inbound = "INBOUND"
-  case state = "STATE"
-  case error = "ERROR"
+    case request = "REQUEST"
+    case response = "RESPONSE"
+    case outbound = "OUTBOUND"
+    case inbound = "INBOUND"
+    case state = "STATE"
+    case error = "ERROR"
 }
 
 public enum LogLevel: String, Codable {
-  case verbose = "VERBOSE"
-  case debug = "DEBUG"
-  case info = "INFO"
-  case warn = "WARN"
-  case error = "ERROR"
-  case assert = "ASSERT"
+    case verbose = "VERBOSE"
+    case debug = "DEBUG"
+    case info = "INFO"
+    case warn = "WARN"
+    case error = "ERROR"
+    case assert = "ASSERT"
 }
 
 public struct LogEvent: Codable {
@@ -37,13 +34,11 @@ public struct LogEvent: Codable {
     public var kind: LogKind
     public var direction: Direction
     public var summary: String
-    
     public var url: String?
     public var method: String?
     public var status: Int?
     public var code: Int?
     public var reason: String?
-    
     public var headers: [String: [String]]?
     public var bodyPreview: String?
     public var bodyIsTruncated: Bool
@@ -71,7 +66,7 @@ public struct LogEvent: Codable {
         bodyIsTruncated: Bool = false,
         bodyBytes: Int? = nil,
         tookMs: Int64? = nil,
-        thread: String = Thread.isMainThread ? "main" : (Thread.current.name ?? "bg"),
+        thread: String = "",
         level: LogLevel? = nil,
         tag: String? = nil,
         pid: Int? = nil,

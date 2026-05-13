@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+### 0.10.0 - 2026-05-13
+
+Modern viewer redesign + correctness fixes — ports Android LogTap v0.14.0.
+
+**Web UI rewrite (`Sources/LogTapFramework/Utils/Resources+{HTML,CSS,JS}.swift`)**
+- Command-search syntax with autocomplete (`level:`, `method:`, `status:`, `exclude:tag:`, `exclude:message:`)
+- Saved filters with star-toggle
+- 4 themes × dark/light (Android Studio, Xcode, Grafana, Modern)
+- Logcat View + Table View toggle, context menu, JSON export
+- PID/TID column matching `adb logcat -v threadtime`
+- Status shorthand: `2xx` / `4xx` / `5xx`
+- New `GET /about` route serving `Resources.aboutHtml`
+
+**Correctness / security fixes**
+- `LogTapURLProtocol` now redacts request + response headers per `Config.redactHeaders` (previously NOT redacted — secrets visible).
+- `LogTap.makeBodyPreview` honors `Config.maxBodyBytes` (previously hard-coded 64 KB regardless of config).
+- Response events now report `bodyIsTruncated` accurately.
+- `POST /api/clear` now actually empties `LogTapStore` (previously a no-op).
+- New WS clients receive last 200 events as backlog on connect (previously empty until first new event).
+- `LogEvent` gained `pid` / `tid` fields; `LogTapStore.add` auto-assigns own PID when event has none.
+
+**Tooling**
+- New `LogTapFrameworkNoop` standalone SPM package at `LogTapFramework-Noop/` — API-compatible empty bodies for release builds.
+- Workspace `LogTapIOS.xcworkspace` now exposes three schemes: `LogTapFramework`, `LogTapFrameworkNoop`, `LogTapSample`.
+- Added `CLAUDE.md`, `ISSUES.md`, `.claude/commands/parity-check.md`, `.claude/commands/release-prep.md`.
+
+No Swift source-compat breaks — new `LogEvent` init parameters are defaulted; new fields are optional Codable members.
+
 ### 0.9.0 - 2025-11-03
 - Add timestamp option to LogTapLogger;
 - Format log messages with optional timestamps

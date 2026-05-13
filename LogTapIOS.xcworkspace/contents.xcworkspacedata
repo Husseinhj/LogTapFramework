@@ -7,4 +7,7 @@
    <FileRef
       location = "group:LogTapSample/LogTapSample.xcodeproj">
    </FileRef>
+   <FileRef
+      location = "group:LogTapFramework-Noop">
+   </FileRef>
 </Workspace>

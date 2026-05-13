@@ -9,6 +9,7 @@ import Foundation
 
 enum Resources {
   static let indexHtml: String = ResourceHTML.indexHtml
-  static let appCss: String   = ResourceCSS.appCss.trimmingCharacters(in: .whitespacesAndNewlines)
-  static let appJs: String    = ResourceJS.appJs.trimmingCharacters(in: .whitespacesAndNewlines)
+  static let aboutHtml: String = ResourceHTML.aboutHtml
+  static let appCss: String    = ResourceCSS.appCss.trimmingCharacters(in: .whitespacesAndNewlines)
+  static let appJs: String     = ResourceJS.appJs.trimmingCharacters(in: .whitespacesAndNewlines)
 }
