@@ -9,6 +9,13 @@ import Foundation
 
 /// Intercepts URLSession traffic (HTTP/HTTPS) when its configuration includes this protocol.
 public final class LogTapURLProtocol: URLProtocol, URLSessionDataDelegate {
+    /// Optional host-app hook. When set, the protocol forwards server-trust (and other)
+    /// auth challenges to this closure so the host can apply the same trust policy
+    /// it would apply on its own URLSession. Default handling is used when unset.
+    public static var authChallengeHandler: (
+        (URLAuthenticationChallenge) async -> (URLSession.AuthChallengeDisposition, URLCredential?)
+    )?
+
     private var relayTask: URLSessionDataTask?
     private var relaySession: URLSession?
     private var resp: URLResponse?
@@ -88,6 +95,20 @@ public final class LogTapURLProtocol: URLProtocol, URLSessionDataDelegate {
     public func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
         self.data.append(data)
         client?.urlProtocol(self, didLoad: data)
+    }
+
+    public func urlSession(_ session: URLSession, didReceive challenge: URLAuthenticationChallenge) async -> (URLSession.AuthChallengeDisposition, URLCredential?) {
+        guard let handler = Self.authChallengeHandler else {
+            return (.performDefaultHandling, nil)
+        }
+        return await handler(challenge)
+    }
+
+    public func urlSession(_ session: URLSession, task: URLSessionTask, didReceive challenge: URLAuthenticationChallenge) async -> (URLSession.AuthChallengeDisposition, URLCredential?) {
+        guard let handler = Self.authChallengeHandler else {
+            return (.performDefaultHandling, nil)
+        }
+        return await handler(challenge)
     }
 
     public func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
