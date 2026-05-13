@@ -166,7 +166,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 2;
-				DEVELOPMENT_TEAM = S83CF7CSM2;
+				DEVELOPMENT_TEAM = YPS6454PCU;
 				INFOPLIST_FILE = Sources/LogTapSample/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -174,7 +174,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.github.husseinhj.LogTapSample;
+				PRODUCT_BUNDLE_IDENTIFIER = com.github.husseinhj.LogTapIOS;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -241,7 +241,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 2;
-				DEVELOPMENT_TEAM = S83CF7CSM2;
+				DEVELOPMENT_TEAM = YPS6454PCU;
 				INFOPLIST_FILE = Sources/LogTapSample/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -249,7 +249,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.github.husseinhj.LogTapSample;
+				PRODUCT_BUNDLE_IDENTIFIER = com.github.husseinhj.LogTapIOS;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
