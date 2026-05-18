@@ -137,7 +137,7 @@ public final class LogTap {
     
     // MARK: Emit
     
-    func emit(_ ev: LogEvent) {
+    public func emit(_ ev: LogEvent) {
         store.add(ev)
     }
     
