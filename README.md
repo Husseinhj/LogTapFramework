@@ -51,7 +51,7 @@
 Add to your dependencies:
 ```swift
 dependencies: [
-    .package(url: "https://github.com/Husseinhj/LogTapFramework.git", from: "0.10.1")
+    .package(url: "https://github.com/Husseinhj/LogTapFramework.git", from: "0.11.0")
 ]
 ```
 

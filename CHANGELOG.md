@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+### 0.11.0 - 2026-05-19
+
+- Expose `LogTap.shared.emit(_:)` as `public` so apps can push their own `LogEvent` values directly into the store without routing through `os_log` / `print`. (Thanks @bo2themax — PR #2)
+- Mirror the new public `emit` on `LogTapFrameworkNoop` for API parity.
+
 ### 0.10.1 - 2026-05-13
 
 - Fix auto-scroll flicker: the log list briefly jumped to the top every time a new event arrived. `refreshLiveAreas` now captures the active scroller's position before replacing `.main` and restores it (or pins to bottom when auto-scroll is on or the user was already at bottom) synchronously, so the browser never paints an intermediate `scrollTop = 0` state.

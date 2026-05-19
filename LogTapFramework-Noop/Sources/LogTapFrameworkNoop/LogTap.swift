@@ -29,7 +29,7 @@ public final class LogTap {
 
     public func stop() {}
 
-    func emit(_ ev: LogEvent) {}
+    public func emit(_ ev: LogEvent) {}
 
     static func makeBodyPreview(data: Data?, contentType: String?) -> String? { nil }
 
