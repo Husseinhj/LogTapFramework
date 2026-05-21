@@ -1196,7 +1196,41 @@ enum ResourceJS {
       refreshLiveAreas();
     });
   }
+  function hasActiveSelectionIn(sel){
+    try {
+      var s = window.getSelection && window.getSelection();
+      if (!s || s.isCollapsed || s.rangeCount === 0) return false;
+      var root = document.querySelector(sel);
+      if (!root) return false;
+      for (var i = 0; i < s.rangeCount; i++) {
+        var r = s.getRangeAt(i);
+        if (root.contains(r.commonAncestorContainer)) return true;
+      }
+    } catch(e) {}
+    return false;
+  }
+  var refreshDeferred = false;
+  var refreshIdleTimer = null;
+  var lastMainInteraction = 0;
   function refreshLiveAreas(){
+    // Defer DOM rebuild while user has an active text selection in the log
+    // area, or while they're actively scrolling/touching/clicking inside it
+    // — replaceSection swaps out the very elements their gesture is bound
+    // to, which kills selections, drops scroll, and causes flicker. We
+    // re-fire once the user goes quiet (or selection clears).
+    var nowTs = Date.now();
+    var interacting = (nowTs - lastMainInteraction) < 250;
+    if (hasActiveSelectionIn('.main') || interacting) {
+      refreshDeferred = true;
+      if (!refreshIdleTimer) {
+        refreshIdleTimer = setTimeout(function(){
+          refreshIdleTimer = null;
+          if (refreshDeferred) refreshLiveAreas();
+        }, 250);
+      }
+      return;
+    }
+    refreshDeferred = false;
     refreshSavedBadge();
     // Capture pre-rebuild scroll position so the list does not flash to the top
     // when .main is replaced. Pick whichever scroller is currently mounted.
@@ -1232,6 +1266,26 @@ enum ResourceJS {
       }
     }
   }
+
+  // When the user finishes a selection (or clears it), flush any refresh
+  // that was deferred while the selection was active.
+  document.addEventListener('selectionchange', function(){
+    if (!refreshDeferred) return;
+    if (hasActiveSelectionIn('.main')) return;
+    refreshLiveAreas();
+  });
+  // Track user interaction inside the log area so we can pause DOM
+  // rebuilds during active scroll/touch gestures (see refreshLiveAreas).
+  function noteMainInteraction(e){
+    var main = document.querySelector('.main');
+    if (main && e.target && main.contains(e.target)) {
+      lastMainInteraction = Date.now();
+    }
+  }
+  document.addEventListener('wheel', noteMainInteraction, {passive:true, capture:true});
+  document.addEventListener('touchstart', noteMainInteraction, {passive:true, capture:true});
+  document.addEventListener('touchmove', noteMainInteraction, {passive:true, capture:true});
+  document.addEventListener('pointerdown', noteMainInteraction, {passive:true, capture:true});
 
   // ---------- KEYBOARD SHORTCUTS ----------
   document.addEventListener('keydown', function(e){

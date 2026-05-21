@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+### 0.12.0 - 2026-05-21
+
+Web viewer responsiveness during fast streams — ports Android LogTap v0.15.0 UX fixes.
+
+- Pause the live log DOM rebuild while the user has an active text selection inside the log area. Selecting log text during a busy stream no longer collapses mid-drag; the deferred refresh fires once the selection clears (via a `selectionchange` listener).
+- Pause the live log DOM rebuild during active scroll, touch, and pointer gestures inside `.main`. Wheel/touch/scrollbar gestures are no longer hijacked by the per-event rebuild during fast streams. A single armed timer flushes once the user is idle (~250 ms).
+- `filterSystemNoise` (added to Android in v0.15.0) is intentionally not ported: the iOS bridge captures stdout/stderr only, so equivalent system-framework noise rarely appears.
+
 ### 0.11.0 - 2026-05-19
 
 - Expose `LogTap.shared.emit(_:)` as `public` so apps can push their own `LogEvent` values directly into the store without routing through `os_log` / `print`. (Thanks @bo2themax — PR #2)
