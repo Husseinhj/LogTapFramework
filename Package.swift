@@ -26,6 +26,15 @@ let package = Package(
                 .product(name: "WebSocketKit", package: "websocket-kit")
             ],
             path: "Sources/LogTapFramework"
+        ),
+        .testTarget(
+            name: "LogTapFrameworkTests",
+            dependencies: [
+                "LogTapFramework",
+                .product(name: "NIO", package: "swift-nio"),
+                .product(name: "NIOHTTP1", package: "swift-nio")
+            ],
+            path: "Tests/LogTapFrameworkTests"
         )
     ]
 )

@@ -114,8 +114,18 @@ public final class LogTap {
             }
         }
         
-        try? server.start(port: cfg.port, router: router)
-        
+        do {
+            // The server scans forward for a free port; remember the one it actually
+            // bound so `urls()` (and the in-app debug screen) point at the right place.
+            let boundPort = try server.start(port: cfg.port, router: router)
+            self.config.port = boundPort
+        } catch {
+            // Don't swallow the bind failure — that left the server silently down
+            // ("this site can't be reached") while still logging "ready" below.
+            LogTapLogger.shared.d("LogTap server failed to start on port \(cfg.port): \(error)")
+            return
+        }
+
         // Broadcast on new events
         _ = store.subscribe { [weak self] ev in
             self?.server.broadcast(event: ev)
@@ -126,7 +136,7 @@ public final class LogTap {
         // `URLSessionWebSocketTask.attach(task:)` to enable WebSocket logging.
 
 
-        // helpful boot log
+        // helpful boot log — only reached when the bind actually succeeded
         let urls = self.urls()
         LogTapLogger.shared.d("LogTap server ready at \(urls.joined(separator: ", "))")
     }
