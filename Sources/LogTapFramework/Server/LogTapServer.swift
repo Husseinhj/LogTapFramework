@@ -21,8 +21,19 @@ final class LogTapServer {
     private var channel: Channel?
     private var wsClients: [WeakChannel] = []
     private let jsonEncoder = JSONEncoder()
-    
-    func start(port: Int, router: @escaping (HTTPRequestHead, ByteBuffer?) -> (status: HTTPResponseStatus, headers: HTTPHeaders, body: ByteBuffer?, upgradeToWebSocket: Bool)) throws {
+
+    // MARK: Bind resiliency (overridable in tests)
+    /// How many ports to try before giving up. The requested port can be taken by
+    /// another instance (e.g. a second simulator sharing the host network) or by a
+    /// previous launch still releasing the socket; rather than staying silently
+    /// down, the server scans forward `port, port + 1, … port + maxPortAttempts - 1`
+    /// and binds the first one that's free.
+    var maxPortAttempts = 10
+
+    /// Binds the listener, scanning forward from `port` until one is free.
+    /// - Returns: the port that was actually bound (may be greater than `port`).
+    @discardableResult
+    func start(port: Int, router: @escaping (HTTPRequestHead, ByteBuffer?) -> (status: HTTPResponseStatus, headers: HTTPHeaders, body: ByteBuffer?, upgradeToWebSocket: Bool)) throws -> Int {
         stop()
         jsonEncoder.outputFormatting = []
 
@@ -68,7 +79,20 @@ final class LogTapServer {
                 }
             }
 
-        self.channel = try bootstrap.bind(host: "0.0.0.0", port: port).wait()
+        // Scan forward for a free port: the requested one may be held by another
+        // instance (a second simulator) or a not-yet-released previous listener,
+        // which throws `EADDRINUSE`. Without this the server would stay down for the
+        // whole session. Surface the last error if every candidate is taken.
+        var lastError: Error?
+        for candidate in port..<(port + max(1, maxPortAttempts)) {
+            do {
+                self.channel = try bootstrap.bind(host: "0.0.0.0", port: candidate).wait()
+                return candidate
+            } catch {
+                lastError = error
+            }
+        }
+        throw lastError ?? ChannelError.unknownLocalAddress
     }
     
     func stop() {
