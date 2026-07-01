@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+### 0.13.0 - 2026-07-01
+
+Server port resilience.
+
+- The embedded server now scans forward from the requested port (up to 10 candidates) and binds the first free one instead of binding a single fixed port. `urls()` reflects the actually-bound port.
+- Bind failures are surfaced instead of being swallowed by `try?`. Previously a taken port (e.g. a second simulator sharing the host network, or a socket still releasing from a prior launch) left the server silently down for the whole session while still logging "server ready". (PR #3)
+- Adds a `LogTapFrameworkTests` target with port-fallback coverage.
+
 ### 0.12.0 - 2026-05-21
 
 Web viewer responsiveness during fast streams — ports Android LogTap v0.15.0 UX fixes.
