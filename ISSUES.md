@@ -5,6 +5,7 @@ Severity tags: **[BUG]** correctness defect, **[SEC]** security/privacy, **[PERF
 ## Status (2026-05-13)
 
 Ported the Android v0.14.0 correctness pass to LogTapFramework. **Fixed in working tree**:
+
 - `LogEvent` gained `pid` / `tid` fields (parity with Android).
 - `LogTapStore.add` now auto-assigns own PID when event has none.
 - `LogTapURLProtocol` now redacts request + response headers using `LogTap.shared.config.redactHeaders` (previously NOT redacted — bug parity with Android #1).
@@ -23,6 +24,7 @@ Items below are still open.
 ## Critical bugs (correctness)
 
 ### 1. [BUG] `LogTap.start` does not gate on debug build
+
 **File**: `Sources/LogTapFramework/LogTap.swift:31`
 
 `Config.enableOnRelease` exists but `start(_:)` doesn't check it against the build configuration. The Android counterpart short-circuits unless `isDebuggable(context) || enableOnRelease`. iOS will happily bind the server in a release archive submitted to TestFlight.
@@ -31,7 +33,8 @@ Items below are still open.
 
 ---
 
-### 2. [BUG] No port-collision fallback
+### 2. ~~[BUG] No port-collision fallback~~ — fixed in 0.13.0
+
 **File**: `Sources/LogTapFramework/Server/LogTapServer.swift:60`
 
 `bootstrap.bind(host: "0.0.0.0", port: port).wait()` throws if the port is taken. Two iOS apps on the same simulator/host using LogTapFramework at default port 8790 will collide; only the first starts. Android version walks 8790 → 8810 → OS-assigned.
@@ -40,7 +43,8 @@ Items below are still open.
 
 ---
 
-### 3. [BUG] `urls()` reports `config.port` even when bind succeeded on a different port
+### 3. ~~[BUG] `urls()` reports `config.port` even when bind succeeded on a different port~~ — fixed in 0.13.0
+
 **File**: `Sources/LogTapFramework/LogTap.swift:198, 201`
 
 Tied to #2 — once port fallback is added, the advertised URL must use the actually-bound port (read from `channel.localAddress?.port`), not the requested `config.port`.
@@ -48,6 +52,7 @@ Tied to #2 — once port fallback is added, the advertised URL must use the actu
 ---
 
 ### 4. [BUG] `LogTapPrintBridge` hijacks stdout globally; re-running `start` without `stop` leaks fds
+
 **File**: `Sources/LogTapFramework/Logger/LogTapPrintBridge.swift`
 
 `start(sink:)` calls `dup2` to replace `STDOUT_FILENO`. If consumer calls `start` twice without `stop` in between, the second `outOrig = dup(STDOUT_FILENO)` captures the pipe fd (not the real terminal), and the original stdout is permanently lost for that process.
@@ -57,6 +62,7 @@ Tied to #2 — once port fallback is added, the advertised URL must use the actu
 ---
 
 ### 5. [BUG] `LogTapServer.HTTPHandler.channelRead` has a stringly-typed early-return guard
+
 **File**: `Sources/LogTapFramework/Server/LogTapServer.swift:102-106`
 
 ```swift
@@ -71,6 +77,7 @@ Workaround for an upstream NIO pipeline issue but the guard is brittle (depends 
 ---
 
 ### 6. [BUG] `URLSessionWebSocketInterceptor.install()` is a no-op
+
 **File**: `Sources/LogTapFramework/Interceptor/URLSessionWebSocketInterceptor.swift:238-249`
 
 `install()` documented as "safe to call multiple times" but the body is intentionally empty due to swizzling fragility on URLSession class clusters. Consumers reading the README may believe install enables auto-interception. Either rename to `install() // no-op` with a deprecation note, or implement attach/detach as the only path and remove `install`.
@@ -80,9 +87,11 @@ Workaround for an upstream NIO pipeline issue but the guard is brittle (depends 
 ## Security / privacy
 
 ### 7. [SEC] Plain-text HTTP server, binds 0.0.0.0, no auth
+
 **File**: `Sources/LogTapFramework/Server/LogTapServer.swift:60`
 
 Same as Android #6. Any device on the same Wi-Fi can read every request body, response body, header (post-redaction), and log line. Mitigations:
+
 1. Default-bind to `127.0.0.1` and require a port-forward (`localhost:8790` via Xcode / `iproxy` for physical devices).
 2. Add a per-session token shown in the Xcode console once; clients pass it as a query param or header.
 3. Extend redaction to common body keys (`password`, `token`, `secret`).
@@ -90,6 +99,7 @@ Same as Android #6. Any device on the same Wi-Fi can read every request body, re
 ---
 
 ### 8. [SEC] No body redaction
+
 **File**: `Sources/LogTapFramework/Interceptor/URLProtocol+Interceptor.swift:38-43`
 
 Headers redacted post-fix, but bodies stream verbatim — JWTs in JSON, OAuth refresh tokens, PII all visible in the UI and any `/api/logs` snapshot.
@@ -99,13 +109,15 @@ Headers redacted post-fix, but bodies stream verbatim — JWTs in JSON, OAuth re
 ---
 
 ### 9. [SEC] `enableOnRelease=true` ships server in App Store builds
-Combined with bug #1 (no debug gate), this is currently a *silent* foot-gun — the flag isn't enforced. After fixing #1, document the risk explicitly in README.
+
+Combined with bug #1 (no debug gate), this is currently a _silent_ foot-gun — the flag isn't enforced. After fixing #1, document the risk explicitly in README.
 
 ---
 
 ## Robustness
 
 ### 10. [BUG] Subscribers run inside the store's serial queue — deadlock risk
+
 **File**: `Sources/LogTapFramework/Log/LogTapStore.swift:26`
 
 ```swift
@@ -118,11 +130,12 @@ q.sync {
 
 If a subscriber synchronously calls back into the store (e.g. `LogTapServer.broadcast` → JSON encode → a log statement on the same queue), this deadlocks.
 
-**Fix**: capture subscribers, call them *after* releasing the lock, or dispatch async to a separate queue.
+**Fix**: capture subscribers, call them _after_ releasing the lock, or dispatch async to a separate queue.
 
 ---
 
 ### 11. [BUG] `LogTapServer.broadcast` allocates a `JSONEncoder` per call
+
 **File**: `Sources/LogTapFramework/Server/LogTapServer.swift:71`
 
 Stored `jsonEncoder` property exists but `broadcast` creates a fresh `JSONEncoder()` each invocation. Minor allocation churn under heavy traffic.
@@ -132,6 +145,7 @@ Stored `jsonEncoder` property exists but `broadcast` creates a fresh `JSONEncode
 ---
 
 ### 12. [BUG] `wsClients` mutated from non-event-loop threads
+
 **File**: `Sources/LogTapFramework/Server/LogTapServer.swift:37, 40, 73`
 
 `wsClients` is a plain `Array` mutated from the NIO event loop (upgrade) and from `broadcast()` (called from `LogTapStore` subscriber, which runs on `logtap.store` queue). Concurrent reads/writes are a data race.
@@ -143,6 +157,7 @@ Stored `jsonEncoder` property exists but `broadcast` creates a fresh `JSONEncode
 ## Performance
 
 ### 13. [PERF] Resources held in memory as Swift string literals
+
 **Files**: `Sources/LogTapFramework/Utils/Resources+{HTML,CSS,JS}.swift`
 
 Ported design from Android. For SPM-distributed library, consider shipping as Bundle resources so they can be memory-mapped.
@@ -150,6 +165,7 @@ Ported design from Android. For SPM-distributed library, consider shipping as Bu
 ---
 
 ### 14. [PERF] `LogTapURLProtocol.startLoading` builds a fresh `URLSession` per request
+
 **File**: `Sources/LogTapFramework/Interceptor/URLProtocol+Interceptor.swift:67-72`
 
 Each intercepted request constructs `URLSession(configuration:, delegate:, delegateQueue:)`. Sessions are expensive — keep one shared relay session per protocol instance class (or a small pool).
@@ -159,7 +175,9 @@ Each intercepted request constructs `URLSession(configuration:, delegate:, deleg
 ## Testing & quality
 
 ### 15. [QA] Zero tests
+
 No `Tests/` directory. Add unit tests for at minimum:
+
 - `LogTapStore`: capacity wrap, `sinceId > id` filter, subscriber ordering, PID auto-assign.
 - `LogTapURLProtocol`: redact set application, body truncation at exact `maxBodyBytes` boundary, error path emits `Direction.error`.
 - `LogTapPrintBridge`: level-token parser, stdout restoration on `stop`.
@@ -167,6 +185,7 @@ No `Tests/` directory. Add unit tests for at minimum:
 ---
 
 ### 16. [DOC] Public API lacks docc comments
+
 Most of the public surface (`LogTap.start`, `LogTapLogger.log`, `LogTapURLProtocol`, `Config` fields) lacks ///-style documentation. Add before publishing the next minor version.
 
 ---

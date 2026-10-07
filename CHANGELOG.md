@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+### Unreleased
+
+Server self-healing after iOS reclaims the listener.
+
+- The listening socket of a suspended app is reclaimed by iOS, which left the dashboard unreachable ("this site can't be reached") until the next cold launch. The server now watches its listener and re-binds whenever it closes without `stop()`, with exponential back-off (1 s doubling to 30 s, up to 10 attempts).
+- Every time the app returns to the foreground, LogTap re-checks the listener with a loopback probe and re-binds right away if it is dead. A single slow probe right after resume is tolerated; only consecutive failures trigger a re-bind.
+- Re-binds retry the previous port first so an open dashboard tab reconnects on its own, then scan the configured range. `urls()` and `config.port` follow if the port had to move. Connected viewers stay connected when the listener is replaced, including while a failed re-bind backs off.
+- All waits are scheduled rather than slept, so `start()` / `stop()` are never stuck behind a recovery.
+- Fixes a data race on the WebSocket client list between event-loop callbacks and `broadcast`.
+- A failed `start()` no longer leaks its event-loop group.
+
 ### 0.13.0 - 2026-07-01
 
 Server port resilience.
@@ -37,6 +48,7 @@ Web viewer responsiveness during fast streams — ports Android LogTap v0.15.0 U
 Modern viewer redesign + correctness fixes — ports Android LogTap v0.14.0.
 
 **Web UI rewrite (`Sources/LogTapFramework/Utils/Resources+{HTML,CSS,JS}.swift`)**
+
 - Command-search syntax with autocomplete (`level:`, `method:`, `status:`, `exclude:tag:`, `exclude:message:`)
 - Saved filters with star-toggle
 - 4 themes × dark/light (Android Studio, Xcode, Grafana, Modern)
@@ -46,6 +58,7 @@ Modern viewer redesign + correctness fixes — ports Android LogTap v0.14.0.
 - New `GET /about` route serving `Resources.aboutHtml`
 
 **Correctness / security fixes**
+
 - `LogTapURLProtocol` now redacts request + response headers per `Config.redactHeaders` (previously NOT redacted — secrets visible).
 - `LogTap.makeBodyPreview` honors `Config.maxBodyBytes` (previously hard-coded 64 KB regardless of config).
 - Response events now report `bodyIsTruncated` accurately.
@@ -54,6 +67,7 @@ Modern viewer redesign + correctness fixes — ports Android LogTap v0.14.0.
 - `LogEvent` gained `pid` / `tid` fields; `LogTapStore.add` auto-assigns own PID when event has none.
 
 **Tooling**
+
 - New `LogTapFrameworkNoop` standalone SPM package at `LogTapFramework-Noop/` — API-compatible empty bodies for release builds.
 - Workspace `LogTapIOS.xcworkspace` now exposes three schemes: `LogTapFramework`, `LogTapFrameworkNoop`, `LogTapSample`.
 - Added `CLAUDE.md`, `ISSUES.md`, `.claude/commands/parity-check.md`, `.claude/commands/release-prep.md`.
@@ -61,22 +75,27 @@ Modern viewer redesign + correctness fixes — ports Android LogTap v0.14.0.
 No Swift source-compat breaks — new `LogEvent` init parameters are defaulted; new fields are optional Codable members.
 
 ### 0.9.0 - 2025-11-03
+
 - Add timestamp option to LogTapLogger;
 - Format log messages with optional timestamps
 - Update Html UI for Mobile size
 
 ### 0.8.0 - 2025-10-28
+
 - Providing one URL for accessing the LogTap server
-- Move code from print to os_log to be able to see the logs in the  Console app too.
+- Move code from print to os_log to be able to see the logs in the Console app too.
 
 ### 0.7.0 - 2025-10-22
+
 - Fix issue to adding LogTapFramework via SPM
 - Fix issue showing logs in webpage
 
 ### 0.6.0 - 2025-10-21
+
 - Fix loading the library
 
 ### 0.5.0 - 2025-10-5
+
 - Change library from LogTapIOS to LogTapFramework
 
 ### 0.4.0 - 2025-09-09
@@ -96,6 +115,7 @@ Enhance UI with DeviceAppInfo, settings popover, and improved accessibility
 - Fix WebSocket URL and improve data handling in LogTapServer
 
 ### 0.2.0 - 2025-09-07
+
 Refactor UI and functionality
 
 - Update repository URL from LogTap to LogTapIOS.
@@ -106,7 +126,9 @@ Refactor UI and functionality
 - Minor style adjustments for table padding and layout.
 
 ## 0.1.0 - 2025-09-07
+
 ### Added
+
 - Initial release of **LogTap** for iOS/macOS/iPadOS.
 - Core **LogTapServer** implementation with embedded SwiftNIO server.
 - **Logger**:
@@ -129,5 +151,6 @@ Refactor UI and functionality
 ---
 
 ## Notes
+
 - This is the **first public version**. Expect API and UI refinements in upcoming releases.
 - Feedback and contributions are welcome!
