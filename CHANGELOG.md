@@ -17,6 +17,7 @@ Server self-healing after iOS reclaims the listener.
 - All waits are scheduled rather than slept, so `start()` / `stop()` are never stuck behind a recovery.
 - Fixes a data race on the WebSocket client list between event-loop callbacks and `broadcast`.
 - A failed `start()` no longer leaks its event-loop group.
+- Fixes a data race in `LogTapStore.add`: event ids were assigned outside the store lock, so events logged from several threads at once could get duplicate or out-of-order ids, making the viewer's `sinceId` paging skip or repeat events.
 
 ### 0.13.0 - 2026-07-01
 
