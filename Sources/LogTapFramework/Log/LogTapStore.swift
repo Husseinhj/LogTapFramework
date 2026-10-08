@@ -20,10 +20,13 @@ final class LogTapStore {
 
   func add(_ ev: LogEvent) {
     var e = ev
-    e.id = nextId
-    nextId += 1
     if e.pid == nil { e.pid = ownPid }
     q.sync {
+      // Assign the id under the same lock as the append: `add` runs on many
+      // threads at once, and ids must be unique and increase in store order
+      // for `snapshot(sinceId:)` paging to neither skip nor repeat events.
+      e.id = nextId
+      nextId += 1
       if deque.count == capacity { deque.removeFirst() }
       deque.append(e)
       subscribers.values.forEach { $0(e) }

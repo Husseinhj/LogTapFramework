@@ -29,8 +29,8 @@
 
 ## 📸 Screenshots
 
-| Network View                                        | Logger View                                       | Detail Drawer                                     | Sample app                                |
-|-----------------------------------------------------|---------------------------------------------------|---------------------------------------------------|-------------------------------------------|
+| Network View                                        | Logger View                                       | Detail Drawer                                     | Sample app                                 |
+| --------------------------------------------------- | ------------------------------------------------- | ------------------------------------------------- | ------------------------------------------ |
 | ![Network screenshot](/docs/screenshot-network.png) | ![Logger screenshot](/docs/screenshot-logger.png) | ![Drawer screenshot](/docs/screenshot-drawer.png) | ![sample screenshot](/docs/sample_app.png) |
 
 ---
@@ -40,6 +40,7 @@
 ### Swift Package Manager
 
 #### Xcode
+
 1. Go to **File > Add Packages…**
 2. Enter the repo URL:
    ```
@@ -48,7 +49,9 @@
 3. Select the **LogTapFramework** library and add it to your target.
 
 #### `Package.swift`
+
 Add to your dependencies:
+
 ```swift
 dependencies: [
     .package(url: "https://github.com/Husseinhj/LogTapFramework.git", from: "0.13.0")
@@ -58,15 +61,18 @@ dependencies: [
 ---
 
 ## 🧪 Sample App (Included in Repo)
+
 A fully functional SwiftUI sample project is bundled so you can try LogTap immediately.
 
 ### Open & Run
+
 1. Clone the repository.
 2. Open `LogTapWorkspace.xcworkspace` (workspace ensures the local package is resolved once).
 3. Select the scheme: `LogTapSample`.
 4. Run on a simulator or (preferably) a real device to access from another machine on the LAN.
 
 ### What It Demonstrates
+
 - Automatic startup of the embedded LogTap server (default sample port: **8795**).
 - Intercepted HTTP traffic (GET/POST/PUT/DELETE plus error/status edge cases).
 - WebSocket echo connection & messages.
@@ -74,14 +80,19 @@ A fully functional SwiftUI sample project is bundled so you can try LogTap immed
 - UI buttons that generate diverse traffic instantly.
 
 ### Finding the Dashboard
+
 On launch you'll see console output like:
+
 ```
 [DEBUG] LogTap server ready at http://192.168.x.x:8795/
 ```
+
 Open that URL in a desktop browser on the same network. Multiple LAN/IP variants may be printed; any reachable one works.
 
 ### Adjusting Configuration Quickly
+
 Inside `LogTapSample.swift`:
+
 ```swift
 var cfg = LogTap.Config()
 cfg.port = 8795        // change if port clashes
@@ -89,25 +100,37 @@ cfg.capacity = 5000     // ring buffer size
 cfg.enableOnRelease = false
 LogTap.shared.start(cfg)
 ```
+
 Change values, re-run, and refresh the web UI.
 
 ### Intercepting Your Own Requests
+
 See the helper in the sample:
+
 ```swift
 let cfg = URLSessionConfiguration.default
 cfg.protocolClasses = [LogTapURLProtocol.self] + (cfg.protocolClasses ?? [])
 let session = URLSession(configuration: cfg)
 ```
+
 Reuse that pattern in your app to log all requests automatically.
 
 ### Tip: Real Device Testing
+
 Simulators sometimes use loopback/isolated networking; running on a physical device gives the most reliable LAN access for the dashboard.
+
+### Port selection and backgrounding
+
+- If the configured port is taken, the server scans the next 9 ports and binds the first free one. `LogTap.shared.urls()` always reports the port actually in use.
+- iOS reclaims the listening socket of an app that sits suspended for a while. LogTap re-binds automatically, and re-checks the listener every time the app returns to the foreground, so the dashboard comes back without relaunching the app.
+- A re-bind first retries the same port so an open dashboard tab reconnects by itself. If that port has meanwhile been taken by something else, the server moves to another port in the range; the open tab cannot follow, so reopen the URL from `urls()`.
 
 ---
 
 ## 🚀 Usage
 
 ### 1. Start the LogTap server
+
 Usually in your `AppDelegate` or `@main` SwiftUI `App`:
 
 ```swift
@@ -116,7 +139,7 @@ import LogTapFramework
 @main
 struct MyApp: App {
     init() {
-      
+
         #if DEBUG
           // Start LogTap server on port 8790
           var cfg = LogTap.Config()
@@ -124,7 +147,7 @@ struct MyApp: App {
           cfg.capacity = 5000
           cfg.enableOnRelease = false
           LogTap.shared.start(cfg)
-    
+
           // Configure LogTapLogger and only use logD, logI, logW, logE in your app
           LogTapLogger.shared.debugMode = true
           LogTapLogger.shared.allowReleaseLogging = false
@@ -149,14 +172,17 @@ struct MyApp: App {
 ```
 
 When your app runs, LogTap will print available server URLs to the Xcode console, e.g.:
+
 ```
 [DEBUG] LogTap server ready at http://192.168.178.66:8790/
 ```
+
 Open that address in your desktop browser to view logs.
 
 ---
 
 ### 2. Log messages
+
 ```swift
 logD("Debug example")
 logI("Info example")
@@ -167,6 +193,7 @@ logE("Error example")
 ---
 
 ### 3. Intercept HTTP(S) calls
+
 ```swift
 let config = URLSessionConfiguration.default
 config.protocolClasses = [LogTapURLProtocol.self] + (config.protocolClasses ?? [])
@@ -181,6 +208,7 @@ task.resume()
 ---
 
 ### 4. Capture WebSocket events
+
 ```swift
 let url = URL(string: "wss://echo.websocket.org")!
 let ws = LogTapWebSocketTask(url: url)
@@ -190,6 +218,7 @@ ws.send(.string("{\"hello\":\"world\"}"))
 ---
 
 ## 📊 Web UI
+
 - Filter logs by kind (HTTP / WebSocket / Logger)
 - Inspect full headers, request & response bodies
 - Export requests as cURL
@@ -199,6 +228,7 @@ ws.send(.string("{\"hello\":\"world\"}"))
 ---
 
 ## 🔒 Security
+
 - The server binds to your device’s LAN IP.
 - Anyone on the same Wi-Fi can access it if they know the URL.
 - Only enable in trusted networks and DEBUG builds.
@@ -220,4 +250,5 @@ MIT License – see [LICENSE](LICENSE) for details.
 ---
 
 ## 📢 Related
+
 - [LogTap (Android)](https://github.com/Husseinhj/LogTap) – the Android/Kotlin version of this library.

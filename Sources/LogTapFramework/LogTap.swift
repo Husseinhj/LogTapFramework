@@ -22,18 +22,29 @@ public final class LogTap {
     public static let shared = LogTap()
     private init() {}
     
-    public private(set) var config = Config()
-    private var server = LogTapServer()
+    /// The active configuration. `port` is the port the server is actually bound
+    /// to, which can differ from the requested one when it was taken, and can
+    /// change later when a re-bind after backgrounding has to move.
+    public var config: Config {
+        var cfg = activeConfig
+        if let port = server.currentPort { cfg.port = port }
+        return cfg
+    }
+    /// The configuration passed to `start(_:)`, and only written there. Its `port`
+    /// is the requested one; `config` overlays the server's bound port.
+    private var activeConfig = Config()
+    private let server = LogTapServer()
     internal var store = LogTapStore(capacity: 5000)
+    private var foregroundObserver: NSObjectProtocol?
     
     // MARK: Lifecycle
     
     public func start(_ cfg: Config = Config()) {
-        self.config = cfg
+        self.activeConfig = cfg
         self.store = LogTapStore(capacity: cfg.capacity)
         
         // Router closure: serve UI, API, and WS
-        let router: (HTTPRequestHead, ByteBuffer?) -> (status: HTTPResponseStatus, headers: HTTPHeaders, body: ByteBuffer?, upgradeToWebSocket: Bool) = { head, body in
+        let router: LogTapRouter = { head, body in
             let path = URLComponents(string: head.uri)?.path ?? head.uri
             switch (head.method, path) {
             case (.GET, "/"):
@@ -115,16 +126,20 @@ public final class LogTap {
         }
         
         do {
-            // The server scans forward for a free port; remember the one it actually
-            // bound so `urls()` (and the in-app debug screen) point at the right place.
-            let boundPort = try server.start(port: cfg.port, router: router)
-            self.config.port = boundPort
+            // The server scans forward for a free port. `config.port` and `urls()`
+            // read the bound port back from the server, so they stay right after a
+            // scan here and after any later re-bind that has to move.
+            try server.start(port: cfg.port, router: router)
         } catch {
             // Don't swallow the bind failure — that left the server silently down
             // ("this site can't be reached") while still logging "ready" below.
             LogTapLogger.shared.d("LogTap server failed to start on port \(cfg.port): \(error)")
             return
         }
+
+        // iOS reclaims the listener while the app is suspended; re-check it every
+        // time the app comes back so the viewer URL works again without a relaunch.
+        observeForeground()
 
         // Broadcast on new events
         _ = store.subscribe { [weak self] ev in
@@ -143,6 +158,21 @@ public final class LogTap {
     
     public func stop() {
         server.stop()
+    }
+
+    /// Registered once for the life of the process (`LogTap` is a singleton), and
+    /// intentionally never removed: after `stop()` the server ignores the call.
+    private func observeForeground() {
+#if canImport(UIKit)
+        guard foregroundObserver == nil else { return }
+        foregroundObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.willEnterForegroundNotification,
+            object: nil,
+            queue: nil
+        ) { [weak self] _ in
+            self?.server.ensureListening()
+        }
+#endif
     }
     
     // MARK: Emit
@@ -183,6 +213,7 @@ public final class LogTap {
     }
     
     public func urls() -> [String] {
+        let port = config.port  // read once: it is resolved from the server
         // best-effort LAN IPv4 list
         var addrs: [(iface: String, ip: String)] = []
          var ifaddrPtr: UnsafeMutablePointer<ifaddrs>?
@@ -215,9 +246,9 @@ public final class LogTap {
          }
         // Prefer en0 (typical Wi‑Fi interface on iOS/macOS) if present
         if let en0 = addrs.first(where: { $0.iface == "en0" }) {
-            return ["http://\(en0.ip):\(config.port)/"]
+            return ["http://\(en0.ip):\(port)/"]
         }
         // Otherwise return all discovered addresses
-        return addrs.map { "http://\($0.ip):\(config.port)/" }
+        return addrs.map { "http://\($0.ip):\(port)/" }
      }
  }
