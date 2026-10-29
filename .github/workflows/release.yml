@@ -1,0 +1,71 @@
+name: Release
+
+# Run from the Actions tab: moves the "### Unreleased" CHANGELOG section to a
+# new version, bumps the SPM version in README, commits, tags, pushes and
+# creates the GitHub release.
+# Pushing a version tag by hand (e.g. `git push origin 1.2.3`) only creates the
+# GitHub release from that version's CHANGELOG section.
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Version bump (ignored when version is set)"
+        type: choice
+        options: [patch, minor, major]
+        default: patch
+      version:
+        description: "Exact version X.Y.Z (optional)"
+        type: string
+        required: false
+  push:
+    tags:
+      - "[0-9]+.[0-9]+.[0-9]+"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.ref_name || github.ref }}
+
+      - name: Prepare version
+        if: github.event_name == 'workflow_dispatch'
+        id: prepare
+        env:
+          BUMP: ${{ inputs.version || inputs.bump }}
+        run: |
+          version=$(python3 scripts/release.py next "$BUMP")
+          if git rev-parse -q --verify "refs/tags/$version" >/dev/null; then
+            echo "::error::Tag $version already exists"
+            exit 1
+          fi
+          python3 scripts/release.py prepare "$version"
+          summary=$(python3 scripts/release.py notes "$version" | head -n 1)
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "Release $version: $summary"
+          git tag "$version"
+          git push origin HEAD:${{ github.ref_name }} "$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve tag
+        if: github.event_name == 'push'
+        id: tag
+        run: echo "version=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.prepare.outputs.version || steps.tag.outputs.version }}
+        run: |
+          python3 scripts/release.py notes "$VERSION" > notes.md
+          gh release create "$VERSION" --title "$VERSION" --notes-file notes.md --verify-tag
