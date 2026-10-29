@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Unreleased
 
+### 0.13.1 - 2026-10-29
+
 Server self-healing after iOS reclaims the listener.
 
 - The listening socket of a suspended app is reclaimed by iOS, which left the dashboard unreachable ("this site can't be reached") until the next cold launch. The server now watches its listener and re-binds whenever it closes without `stop()`, with exponential back-off (1 s doubling to 30 s, up to 10 attempts).
